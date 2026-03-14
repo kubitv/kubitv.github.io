@@ -20,7 +20,6 @@
         #list-side { background:var(--surface); display:flex; flex-direction:column; height:100%; overflow:hidden; border-left:1px solid #333; position: relative; }
         #header { padding:10px; background:#000; display:flex; flex-wrap:wrap; gap:5px; align-items:center; border-bottom: 1px solid #222; z-index: 60; }
         
-        /* Liste Alanları */
         .list-wrapper { flex:1; position: relative; overflow: hidden; }
         #group-list, #channel-list { 
             position: absolute; top:0; left:0; width:100%; height:100%; 
@@ -28,26 +27,21 @@
             background: var(--surface); transition: transform 0.2s ease;
         }
         
-        /* Kanal listesi varsayılan olarak sağda/gizli bekler */
         #channel-list { transform: translateX(100%); z-index: 40; }
         #channel-list.active { transform: translateX(0); }
 
-        #nav-sticky { 
-            background: #000; padding: 5px 10px; border-bottom: 1px solid #333;
-            display: none; z-index: 45;
-        }
+        #nav-sticky { background: #000; padding: 5px 10px; border-bottom: 1px solid #333; display: none; z-index: 45; }
 
         .card { padding:8px 12px; margin-bottom:5px; background:#222; border-radius:4px; display:flex; justify-content:space-between; align-items:center; border:1px solid #333; cursor:pointer; }
         .card:hover { border-color: var(--primary); }
 
-        .thin-back-btn { 
-            width: 100%; padding: 6px; font-size: 10px; text-align: center;
-            background: #e50914; color: white; border: none; border-radius: 3px;
-            font-weight: bold; cursor: pointer; text-transform: uppercase;
-        }
+        .thin-back-btn { width: 100%; padding: 6px; font-size: 10px; text-align: center; background: #e50914; color: white; border: none; border-radius: 3px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
         
         .group-tag { font-size: 9px; color: #888; background: #111; padding: 2px 4px; border-radius: 2px; margin-left: 5px; }
-        .btn-copy { background:#333; color:#fff; border:none; padding:4px 8px; border-radius:3px; font-size:9px; cursor:pointer; }
+        
+        .btn-copy { display: none; background:#333; color:#fff; border:none; padding:4px 8px; border-radius:3px; font-size:9px; cursor:pointer; }
+        .show-copy .btn-copy { display: block !important; }
+
         .btn-sort { background:#222; color:#fff; border:1px solid #444; padding:4px 6px; border-radius:3px; font-size:10px; cursor:pointer; }
         .loading { padding: 20px; text-align: center; color: var(--primary); font-size: 12px; }
     </style>
@@ -57,7 +51,7 @@
 <div id="app-grid">
     <div id="player-side">
         <video id="video" controls autoplay playsinline></video>
-        <input id="search" placeholder="🔍 400.000+ kanal içinde ara..." style="margin-top:10px;padding:8px;width:100%;background:#111;border:1px solid #333;color:white;border-radius:4px;" onkeyup="handleSearch()">
+        <input id="search" placeholder="🔍 Kanal ara..." style="margin-top:10px;padding:8px;width:100%;background:#111;border:1px solid #333;color:white;border-radius:4px;" onkeyup="handleSearch()">
     </div>
     <div id="list-side">
         <div id="header">
@@ -89,20 +83,26 @@ let allData = {}, originalGroupOrder = [], hls = null, searchTimer = null;
 const v = document.getElementById("video"), groupContainer = document.getElementById("group-list"), 
       channelContainer = document.getElementById("channel-list"), nav = document.getElementById("nav-sticky");
 
+// Geliştirilmiş Parser: Boş satırları ve kaymaları tolere eder
 function parseM3U(text) {
     allData = {}; originalGroupOrder = [];
     groupContainer.innerHTML = '<div class="loading">İşleniyor...</div>';
-    const lines = text.split(/\r?\n/);
+    
+    // Boşlukları temizle
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l !== "");
     let i = 0;
     function chunk() {
-        let limit = i + 10000;
+        let limit = i + 5000;
         while (i < lines.length && i < limit) {
-            let line = lines[i];
-            if (line.startsWith("#EXTINF")) {
-                let group = line.match(/group-title="(.*?)"/)?.[1] || "Diğer";
-                let name = line.split(",")[1]?.trim() || "İsimsiz Kanal";
-                let url = lines[i+1]?.trim();
-                if (url && !url.startsWith("#")) {
+            if (lines[i].startsWith("#EXTINF")) {
+                let group = lines[i].match(/group-title="(.*?)"/)?.[1] || "Diğer";
+                let name = lines[i].split(",")[1]?.trim() || "İsimsiz Kanal";
+                
+                // URL'yi bul (boş satırları atlayarak)
+                let url = lines[i+1];
+                if (url && url.startsWith("#")) url = lines[i+2];
+
+                if (url && url.startsWith("http")) {
                     if (!allData[group]) { allData[group] = []; originalGroupOrder.push(group); }
                     allData[group].push({ name, url, group });
                 }
@@ -113,6 +113,8 @@ function parseM3U(text) {
     }
     chunk();
 }
+
+
 
 function sortAndShowGroups() {
     groupContainer.innerHTML = "";
@@ -130,7 +132,7 @@ function sortAndShowGroups() {
         frag.appendChild(div);
     });
     groupContainer.appendChild(frag);
-    closeChannelList(); // Yeni yüklemede listeyi kapat
+    closeChannelList();
 }
 
 function renderChannelList(channels) {
@@ -152,13 +154,20 @@ function renderChannelList(channels) {
 function closeChannelList() {
     channelContainer.classList.remove("active");
     nav.style.display = "none";
-    // groupContainer.scrollTop Dokunulmaz! Böylece kaldığın yer korunur.
 }
 
 function handleSearch() {
+    const searchInput = document.getElementById("search");
+    const val = searchInput.value.toLowerCase();
+
+    if (val === "kubi") {
+        document.body.classList.add("show-copy");
+        searchInput.value = "";
+        return;
+    }
+
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
-        const val = document.getElementById("search").value.toLowerCase();
         if (val.length < 2) { if(val.length === 0) closeChannelList(); return; }
         
         channelContainer.innerHTML = "";
@@ -200,8 +209,8 @@ document.getElementById("fileInput").addEventListener("change", e => {
 async function loadUrl() {
     const url = document.getElementById('m3uUrl').value;
     if(!url) return;
-    try { groupContainer.innerHTML = '<div class="loading">Yükleniyor...</div>'; const res = await fetch(url); parseM3U(await res.text()); } 
-    catch(e) { alert("Hata!"); }
+    try { groupContainer.innerHTML = '<div class="loading">İndiriliyor...</div>'; const res = await fetch(url); parseM3U(await res.text()); } 
+    catch(e) { alert("Hata! URL erişilemez."); }
 }
 </script>
 </body>
