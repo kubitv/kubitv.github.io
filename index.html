@@ -14,8 +14,13 @@
         @media (orientation: landscape){ #app-grid{grid-template-columns:55% 45%;} }
         @media (orientation: portrait){ #app-grid{grid-template-columns:100%;grid-template-rows:auto 1fr;} }
         
-        /* PC EKRAN DARALTMA */
-        @media (min-width: 1024px) { #app-grid { grid-template-columns: 1fr 500px !important; } }
+        /* PC EKRAN: Liste 400px'e daraltıldı, yazı ve butonlar büyütüldü */
+        @media (min-width: 1024px) { 
+            #app-grid { grid-template-columns: 1fr 400px !important; }
+            #header, #nav-sticky, .card { font-size: 14px !important; padding: 12px !important; }
+            .btn-sort, .btn-copy { font-size: 12px !important; padding: 6px 10px !important; }
+            .thin-back-btn { font-size: 12px !important; padding: 10px !important; }
+        }
         
         #player-side { background:#000; padding:10px; display:flex; flex-direction:column; z-index: 50; }
         #video { width:100%; aspect-ratio:16/9; background:#000; border-radius:8px; }
@@ -29,12 +34,12 @@
         #channel-list { transform: translateX(100%); z-index: 40; }
         #channel-list.active { transform: translateX(0); }
 
-        #nav-sticky { background: #000; padding: 5px 10px; border-bottom: 1px solid #333; display: none; z-index: 45; }
+        #nav-sticky { background: #000; padding: 8px 10px; border-bottom: 1px solid #333; display: none; z-index: 45; }
 
         .card { padding:8px 12px; margin-bottom:5px; background:#222; border-radius:4px; display:flex; justify-content:space-between; align-items:center; border:1px solid #333; cursor:pointer; }
         .card:hover, .card:focus { border-color: var(--primary); background: #333; }
 
-        .thin-back-btn { width: 100%; padding: 6px; font-size: 10px; text-align: center; background: #e50914; color: white; border: none; border-radius: 3px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+        .thin-back-btn { width: 100%; padding: 8px; font-size: 10px; text-align: center; background: #e50914; color: white; border: none; border-radius: 3px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
         
         .group-tag { font-size: 9px; color: #888; background: #111; padding: 2px 4px; border-radius: 2px; margin-left: 5px; }
         .btn-copy { display: none; background:#333; color:#fff; border:none; padding:4px 8px; border-radius:3px; font-size:9px; cursor:pointer; }
@@ -93,10 +98,8 @@ document.addEventListener('keydown', (e) => {
 });
 
 async function pasteUrl() {
-    try {
-        const text = await navigator.clipboard.readText();
-        document.getElementById("m3uUrl").value = text;
-    } catch(e) { alert("Tarayıcı izni gerekli."); }
+    try { const text = await navigator.clipboard.readText(); document.getElementById("m3uUrl").value = text; } 
+    catch(e) { alert("Tarayıcı izni gerekli."); }
 }
 
 function parseM3U(text) {
@@ -129,7 +132,6 @@ function sortAndShowGroups() {
     let groups = [...originalGroupOrder];
     if (sortVal === "az") groups.sort((a, b) => a.localeCompare(b));
     else if (sortVal === "za") groups.sort((a, b) => b.localeCompare(a));
-
     groups.forEach(g => {
         const div = document.createElement("div");
         div.className = "card"; div.tabIndex = 0;
@@ -181,6 +183,7 @@ function handleSearch() {
 function play(url) {
     if (hls) hls.destroy();
     if (Hls.isSupported()) { hls = new Hls(); hls.loadSource(url); hls.attachMedia(v); v.play(); }
+    else { v.src = url; v.play(); }
 }
 
 function copy(url) { navigator.clipboard.writeText(url).then(() => alert("Kopyalandı!")); }
