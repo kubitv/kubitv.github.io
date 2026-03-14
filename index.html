@@ -14,14 +14,16 @@
         @media (orientation: landscape){ #app-grid{grid-template-columns:55% 45%;} }
         @media (orientation: portrait){ #app-grid{grid-template-columns:100%;grid-template-rows:auto 1fr;} }
         
-        /* PC EKRAN: Liste 400px, Header ve Butonlar büyütüldü */
+        /* PC EKRAN: Liste 400px, Header ve Butonlar düzenlendi */
         @media (min-width: 1024px) { 
             #app-grid { grid-template-columns: 1fr 400px !important; }
-            #header { padding: 15px !important; gap: 10px !important; }
-            #header span, #header select, #header input, #header button { font-size: 14px !important; height: 35px; }
-            #header input { width: 100px !important; }
-            .thin-back-btn { font-size: 14px !important; padding: 12px !important; }
-            .card { font-size: 15px !important; padding: 14px !important; }
+            #header { padding: 10px !important; gap: 4px !important; flex-wrap: nowrap !important; }
+            #header span { font-size: 13px !important; }
+            /* Select kutusunu daralttık */
+            .btn-sort { font-size: 11px !important; width: 70px !important; padding: 2px !important; }
+            #header input, #header button { font-size: 12px !important; height: 30px; }
+            #m3uUrl { width: 80px !important; }
+            .card { font-size: 14px !important; padding: 10px !important; }
         }
         
         #player-side { background:#000; padding:10px; display:flex; flex-direction:column; z-index: 50; }
@@ -60,7 +62,7 @@
     </div>
     <div id="list-side">
         <div id="header">
-            <span id="title"><b>Zec IPTV</b></span>
+            <span id="title" style="white-space:nowrap; font-size:12px;"><b>Zec IPTV</b></span>
             <select id="sortOrder" tabindex="0" class="btn-sort" onchange="sortAndShowGroups()">
                 <option value="original">Varsayılan</option>
                 <option value="az">A-Z</option>
@@ -85,7 +87,6 @@
 </div>
 
 <script>
-// Mantık kısmı aynı olduğu için sadece işlevsel güncellemeleri koruyorum
 let allData = {}, originalGroupOrder = [], hls = null, searchTimer = null;
 const v = document.getElementById("video"), groupContainer = document.getElementById("group-list"), 
       channelContainer = document.getElementById("channel-list"), nav = document.getElementById("nav-sticky");
