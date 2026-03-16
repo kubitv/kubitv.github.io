@@ -2,64 +2,41 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Zec IPTV - Tam İşlevsel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Zec IPTV Pro</title>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <style>
 :root{ --accent:#ff2a6d; --bg:#0e0e12; --card-bg:#242429; --text:#ffffff; }
-html,body{ margin:0; padding:0; height:100dvh; background:var(--bg); font-family:'Segoe UI',sans-serif; overflow:hidden; }
-body{ display:flex; flex-direction:column; color:var(--text); }
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; overflow: hidden; }
 
-/* Video Alanı */
-#player-wrapper{ height:35vh; background:#000; flex-shrink:0; position:relative; transition: all 0.3s ease; }
-video{ width:100%; height:100%; object-fit:contain; background:#000; cursor:pointer; }
+#app-container { display: grid; grid-template-rows: 35vh 1fr; width: 100vw; height: 100vh; }
+@media (orientation: landscape) { #app-container { grid-template-rows: 1fr; grid-template-columns: 1fr 320px; } }
 
-/* Liste Alanı */
-.list-area{ flex:1; display:flex; flex-direction:column; padding:8px; overflow:hidden; min-width:120px; }
-#search-input{ width:100%; padding:10px; border-radius:6px; border:1px solid #33333a; background:#1c1c21; color:white; margin-bottom:8px; box-sizing:border-box; font-size:0.9rem; outline: none; }
-#search-input:focus { border-color: var(--accent); }
+#player-wrapper { background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+video { width: 100%; height: 100%; object-fit: contain; }
 
-#list-container{ flex:1; overflow-y:auto; padding-right: 4px; }
-/* Kaydırma Çubuğu Özelleştirme */
-#list-container::-webkit-scrollbar { width: 6px; }
-#list-container::-webkit-scrollbar-thumb { background-color: #33333a; border-radius: 4px; }
+.list-area { display: flex; flex-direction: column; background: #1c1c21; padding: 10px; overflow: hidden; width: 100%; box-sizing: border-box; }
+#search-input { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #333; background: #242429; color: white; text-align: center; font-size: 0.9rem; box-sizing: border-box; }
 
-.item{ padding:8px; margin-bottom:6px; background:var(--card-bg); border-radius:6px; display:flex; align-items:center; gap:10px; cursor:pointer; border:1px solid #33333a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:0.85rem; transition: background 0.2s, border-color 0.2s; }
-.item img{ width:24px; height:24px; border-radius:4px; object-fit:cover; background:#333; flex-shrink:0; }
-.item span { flex: 1; overflow: hidden; text-overflow: ellipsis; text-align: left; }
-.group{ text-align:center; color:var(--accent); font-size:0.75rem; margin:14px 0 6px; font-weight:bold; text-transform:uppercase; letter-spacing: 1px; }
-
-.item.active{ border-color:var(--accent); background:#35252b; }
-.delete-btn{ color:#ff4d4d; cursor:pointer; font-weight:bold; padding:4px 8px; border-radius: 4px; background: rgba(255,0,0,0.1); }
-
-/* Yatay (TV / PC) Düzeni */
-@media (orientation: landscape){ 
-    body{ flex-direction:row; } 
-    #player-wrapper{ height:100dvh; flex:1; } 
-    .list-area{ width:320px; flex:none; } 
-}
-
-/* TAM EKRAN MODU (Daralma ve Kayma Sorununu Çözen Kısım) */
-body.fullscreen #player-wrapper {
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    width: 100vw; height: 100dvh;
-    z-index: 9999;
-}
-body.fullscreen .list-area {
-    display: none;
-}
+#list-container { flex: 1; overflow-y: auto; }
+.item { padding: 6px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; border: 1px solid #333; height: 32px; }
+.item img { width: 22px; height: 22px; border-radius: 3px; object-fit: cover; }
+.item span { font-size: 0.8rem; font-weight: 500; white-space: nowrap; overflow: hidden; }
+.item.active { border-color: var(--accent); background: #35252b; }
+.delete-btn { color: #ff4d4d; font-weight: bold; margin-left: 10px; cursor: pointer; }
+.group { color: var(--accent); font-size: 0.65rem; font-weight: bold; margin: 12px 0 5px; text-transform: uppercase; text-align: center; }
 </style>
 </head>
 <body>
 
-<div id="player-wrapper" onclick="toggleFullscreen()">
-    <video id="video" controls playsinline></video>
-</div>
-
-<div class="list-area">
-    <input type="text" id="search-input" placeholder="🔍 Ara...">
-    <div id="list-container"></div>
+<div id="app-container">
+    <div id="player-wrapper" onclick="toggleFullscreen()">
+        <video id="video" controls playsinline></video>
+    </div>
+    <div class="list-area">
+        <input type="text" id="search-input" placeholder="🔍 Kanal Ara...">
+        <div id="list-container"></div>
+    </div>
 </div>
 
 <script>
@@ -67,7 +44,7 @@ let tumVeri = {}, grupListesi = [], aktifGrupIndex = 0, aktifKanalIndex = 0;
 const grupSirasi = ["ulusal","sinema ve dizi","belgesel","ulusal haber","spor","çocuk & eğitim","yaşam & eğlence","yabancı haber","yabancı","müzik"];
 
 async function veriCek(){
-    try{
+    try {
         const res = await fetch("https://boru-pc-tv.vercel.app/");
         const text = await res.text();
         const data = JSON.parse(text.match(/const channelsData = ([\s\S]*?);/)[1]);
@@ -76,21 +53,18 @@ async function veriCek(){
         tumVeri = {};
         Object.keys(data).forEach(g=>{
             let key = g.toLowerCase();
-            if(key==="bilgilendirme") return;
             if(!tumVeri[key]) tumVeri[key]=[];
             tumVeri[key].push(...data[g]);
         });
-        
         manuel.forEach(k=>{
             let g=k.group.toLowerCase();
             if(!tumVeri[g]) tumVeri[g]=[];
             tumVeri[g].push(k);
         });
-
         grupListesi = grupSirasi.filter(g => tumVeri[g]);
         render();
         oynatAktif();
-    } catch(e) { console.log("Veri çekme hatası:", e); }
+    } catch(e) { console.log(e); }
 }
 
 function render(){
@@ -103,38 +77,19 @@ function render(){
         let kanallar = tumVeri[grup].filter(k => silMode || val === "" || k.name.toLowerCase().includes(val));
         if(!kanallar.length) return;
         
-        let gEl=document.createElement("div"); gEl.className="group"; gEl.innerText=grup;
+        let gEl = document.createElement("div"); gEl.className="group"; gEl.innerText=grup;
         container.appendChild(gEl);
         
-        kanallar.forEach((k)=>{
-            // Orijinal index'i bulalım ki arama yapıldığında bile doğru kanalı seçebilelim
-            let orijinalKanalIndex = tumVeri[grup].indexOf(k);
-
-            let el=document.createElement("div");
+        kanallar.forEach(k=>{
+            let el = document.createElement("div");
             el.className="item";
-            el.dataset.grupIdx = gIdx;
-            el.dataset.kanalIdx = orijinalKanalIndex;
-            el.innerHTML=`<img src="${k.logo||'https://via.placeholder.com/24'}"><span>${k.name}</span>`;
-            
-            if(silMode){
-                let btn=document.createElement("span"); btn.className="delete-btn"; btn.innerText="Sil";
-                btn.onclick=(e)=>{ e.stopPropagation(); kanalSil(k.name); };
+            el.innerHTML = `<img src="${k.logo || 'https://via.placeholder.com/22'}"><span>${k.name}</span>`;
+            if(silMode) {
+                let btn = document.createElement("span"); btn.className="delete-btn"; btn.innerText="✕";
+                btn.onclick = (e) => { e.stopPropagation(); kanalSil(k.name); };
                 el.appendChild(btn);
             }
-            
-            el.onclick=(e)=>{ 
-                e.stopPropagation();
-                aktifGrupIndex = gIdx; 
-                aktifKanalIndex = orijinalKanalIndex; 
-                
-                // Mobilde oynatmaya basınca tam ekrana geç
-                if(window.innerWidth < window.innerHeight) {
-                    toggleFullscreen(true);
-                }
-                
-                updateActive(); 
-                oynatAktif(); 
-            };
+            el.onclick = () => { aktifGrupIndex = gIdx; aktifKanalIndex = tumVeri[grup].indexOf(k); updateActive(); oynatAktif(); };
             container.appendChild(el);
         });
     });
@@ -149,143 +104,44 @@ function kanalSil(name){
 }
 
 function updateActive(){
-    const items = document.querySelectorAll(".item");
-    items.forEach(el => {
-        let match = (parseInt(el.dataset.grupIdx) === aktifGrupIndex && parseInt(el.dataset.kanalIdx) === aktifKanalIndex);
-        el.classList.toggle("active", match);
-        if(match) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    document.querySelectorAll(".item").forEach(el => {
+        let name = el.querySelector("span").innerText;
+        el.classList.toggle("active", name === tumVeri[grupListesi[aktifGrupIndex]][aktifKanalIndex].name);
     });
 }
 
 function oynatAktif(){
-    if (grupListesi.length === 0) return;
+    if(!tumVeri[grupListesi[aktifGrupIndex]]) return;
     let kanal = tumVeri[grupListesi[aktifGrupIndex]][aktifKanalIndex];
-    if(!kanal) return;
-    
-    const v=document.getElementById("video");
+    const v = document.getElementById("video");
     if(window.hls) window.hls.destroy();
-    if(Hls.isSupported()){ 
-        window.hls=new Hls(); 
-        window.hls.loadSource(kanal.url); 
-        window.hls.attachMedia(v); 
-    } else {
-        v.src=kanal.url;
-    }
+    if(Hls.isSupported()){ window.hls = new Hls(); window.hls.loadSource(kanal.url); window.hls.attachMedia(v); }
+    else v.src = kanal.url;
     v.play().catch(()=>{});
 }
 
-function toggleFullscreen(forceState) {
-    if(typeof forceState === "boolean") {
-        document.body.classList.toggle("fullscreen", forceState);
-    } else {
-        document.body.classList.toggle("fullscreen");
-    }
+function toggleFullscreen() {
+    const app = document.getElementById("app-container");
+    if (!document.fullscreenElement) app.requestFullscreen().catch(()=>{});
+    else document.exitFullscreen();
 }
 
-// KUMANDA - ZAP (Kanal Değiştirme) YUKARI / AŞAĞI
-function kanalDegistir(yon) {
-    if (grupListesi.length === 0) return;
-    
-    let mevcutGrupUzunlugu = tumVeri[grupListesi[aktifGrupIndex]].length;
-    aktifKanalIndex += yon;
-
-    if (aktifKanalIndex < 0) {
-        aktifGrupIndex--;
-        if (aktifGrupIndex < 0) aktifGrupIndex = grupListesi.length - 1; // En sona sar
-        aktifKanalIndex = tumVeri[grupListesi[aktifGrupIndex]].length - 1;
-    } else if (aktifKanalIndex >= mevcutGrupUzunlugu) {
-        aktifGrupIndex++;
-        if (aktifGrupIndex >= grupListesi.length) aktifGrupIndex = 0; // En başa sar
-        aktifKanalIndex = 0;
-    }
-    
-    // Zap yaparken aramayı temizle (listenin sağlıklı görünmesi için)
-    const searchInput = document.getElementById("search-input");
-    if(searchInput.value !== "") {
-        searchInput.value = "";
-        render();
-    } else {
-        updateActive();
-    }
-    oynatAktif();
-}
-
-// ARAMA VE EKLEME KONTROLÜ
-document.getElementById("search-input").oninput = render;
-document.getElementById("search-input").addEventListener("keydown", e => {
-    if(e.key==="Enter") {
-        let val = e.target.value;
-        if(val.startsWith("ekle|")){
-            let v = val.split("|");
-            if(v.length>=4){
-                let m = JSON.parse(localStorage.getItem("manuelKanallar")||"[]");
-                m.push({group:v[1], name:v[2], url:v[3], logo:v[4]||""});
-                localStorage.setItem("manuelKanallar", JSON.stringify(m));
-                e.target.value=""; 
-                veriCek();
-            }
-        } else {
-            // Arama kutusunda enter'a basılınca ilk kanalı aç ve odaklanmayı bırak
-            e.target.blur();
-            let ilkKanalEl = document.querySelector(".item");
-            if(ilkKanalEl) ilkKanalEl.click();
-        }
-    }
+document.addEventListener("keydown", e => {
+    if(document.activeElement.id === "search-input") return;
+    if(e.keyCode === 13) toggleFullscreen();
+    if(e.keyCode === 38) { aktifKanalIndex = Math.max(0, aktifKanalIndex - 1); oynatAktif(); updateActive(); }
+    if(e.keyCode === 40) { aktifKanalIndex = Math.min(tumVeri[grupListesi[aktifGrupIndex]].length - 1, aktifKanalIndex + 1); oynatAktif(); updateActive(); }
 });
 
-// KUMANDA / KLAVYE KONTROLLERİ
-document.addEventListener("keydown", e => {
-    // Eğer kullanıcı arama kutusuna yazı yazıyorsa, TV kontrolleri araya girmesin!
-    if(document.activeElement.id === "search-input" && e.keyCode !== 27 && e.keyCode !== 13) {
-        return; 
-    }
-
-    const isFullscreen = document.body.classList.contains("fullscreen");
-
-    switch(e.keyCode) {
-        case 38: // YUKARI - Önceki Kanal
-            e.preventDefault();
-            kanalDegistir(-1);
-            break;
-            
-        case 40: // AŞAĞI - Sonraki Kanal
-            e.preventDefault();
-            kanalDegistir(1);
-            break;
-            
-        case 13: // ENTER / OK - Tam Ekran Değiştir
-            if(document.activeElement.id !== "search-input") {
-                e.preventDefault();
-                // Tam ekranken basılırsa listeye dön (listeyi aç), listedeyken basılırsa tam ekrana geç
-                toggleFullscreen(!isFullscreen);
-            }
-            break;
-            
-        case 8:    // BACKSPACE (Geri)
-        case 27:   // ESC
-        case 461:  // LG WebOS BACK
-        case 10009:// Samsung Tizen RETURN
-            if(document.activeElement.id === "search-input") {
-                // Sadece ESC'ye basıldıysa inputtan çık
-                if(e.keyCode === 27) document.getElementById("search-input").blur();
-                return; // Input'tayken backspace silme işlemi yapsın, ekrana dokunmasın.
-            }
-            e.preventDefault();
-            if (isFullscreen) {
-                toggleFullscreen(false); // Tam ekrandan çık
-            }
-            break;
-            
-        case 39: // SAĞ - Arama Kutusu Odaklan
-            if (!isFullscreen) {
-                e.preventDefault();
-                document.getElementById("search-input").focus();
-            }
-            break;
-            
-        case 37: // SOL - Arama Kutusundan Çık
-            document.getElementById("search-input").blur();
-            break;
+document.getElementById("search-input").addEventListener("input", render);
+document.getElementById("search-input").addEventListener("keydown", e => {
+    if(e.key === "Enter" && e.target.value.startsWith("ekle|")) {
+        let v = e.target.value.split("|");
+        let m = JSON.parse(localStorage.getItem("manuelKanallar")||"[]");
+        m.push({group:v[1], name:v[2], url:v[3], logo:v[4]||""});
+        localStorage.setItem("manuelKanallar", JSON.stringify(m));
+        e.target.value = "";
+        veriCek();
     }
 });
 
