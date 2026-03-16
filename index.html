@@ -1,206 +1,275 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Zec IPTV Ultimate Pro</title>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <style>
-        * { margin:0; padding:0; box-sizing:border-box; outline: none; }
-        :root { --bg:#0d0d0d; --surface:#1a1a1a; --primary:#e50914; --text:#ffffff; }
-        body { background:var(--bg); color:var(--text); font-family:sans-serif; height:100vh; overflow:hidden; }
-        
-        #app-grid { display:grid; height:100vh; width:100vw; overflow: hidden; }
-        @media (orientation: landscape){ #app-grid{grid-template-columns:55% 45%;} }
-        @media (orientation: portrait){ #app-grid{grid-template-columns:100%;grid-template-rows:auto 1fr;} }
-        
-        /* PC EKRAN: Liste 400px, Header ve Butonlar düzenlendi */
-        @media (min-width: 1024px) { 
-            #app-grid { grid-template-columns: 1fr 400px !important; }
-            #header { padding: 10px !important; gap: 4px !important; flex-wrap: nowrap !important; }
-            #header span { font-size: 13px !important; }
-            /* Select kutusunu daralttık */
-            .btn-sort { font-size: 11px !important; width: 70px !important; padding: 2px !important; }
-            #header input, #header button { font-size: 12px !important; height: 30px; }
-            #m3uUrl { width: 80px !important; }
-            .card { font-size: 14px !important; padding: 10px !important; }
-        }
-        
-        #player-side { background:#000; padding:10px; display:flex; flex-direction:column; z-index: 50; }
-        #video { width:100%; aspect-ratio:16/9; background:#000; border-radius:8px; }
-        
-        #list-side { background:var(--surface); display:flex; flex-direction:column; height:100%; overflow:hidden; border-left:1px solid #333; position: relative; }
-        #header { padding:10px; background:#000; display:flex; flex-wrap:wrap; gap:5px; align-items:center; border-bottom: 1px solid #222; z-index: 60; }
-        
-        .list-wrapper { flex:1; position: relative; overflow: hidden; }
-        #group-list, #channel-list { position: absolute; top:0; left:0; width:100%; height:100%; overflow-y:auto; padding:10px; scrollbar-width: thin; background: var(--surface); transition: transform 0.2s ease; }
-        
-        #channel-list { transform: translateX(100%); z-index: 40; }
-        #channel-list.active { transform: translateX(0); }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Zec IPTV</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<style>
+:root{
+    --accent:#ff2a6d;
+    --bg:#0e0e12;
+    --card-bg:#242429;
+    --text:#ffffff;
+}
+html,body{
+    margin:0;
+    padding:0;
+    height:100dvh;
+    background:var(--bg);
+    font-family:'Segoe UI',sans-serif;
+    overflow:hidden;
+}
+body{
+    display:flex;
+    flex-direction:column;
+    color:var(--text);
+}
+#player-wrapper{
+    height:35vh;
+    background:#000;
+    flex-shrink:0;
+    transition: height 0.3s;
+}
+video{
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    background:#000;
+}
+.list-area{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    padding:8px;
+    overflow:hidden;
+    min-width:120px;
+}
+#search-input{
+    width:100%;
+    padding:8px;
+    border-radius:6px;
+    border:1px solid #33333a;
+    background:#1c1c21;
+    color:white;
+    margin-bottom:8px;
+    box-sizing:border-box;
+    font-size:0.8rem;
+}
+#list-container{
+    flex:1;
+    overflow-y:auto;
+}
+.item{
+    padding:6px;
+    margin-bottom:4px;
+    background:var(--card-bg);
+    border-radius:6px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    cursor:pointer;
+    border:1px solid #33333a;
+    white-space:nowrap;
+    text-align:center;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    font-size:0.8rem;
+}
+.item img{
+    width:20px;
+    height:20px;
+    border-radius:4px;
+    object-fit:cover;
+    background:#333;
+}
+.group{
+    text-align:center;
+    color:var(--accent);
+    font-size:0.65rem;
+    margin:12px 0 4px;
+    font-weight:bold;
+    text-transform:uppercase;
+}
+.delete-btn{
+    margin-left:auto;
+    color:red;
+    cursor:pointer;
+    font-weight:bold;
+    padding:0 4px;
+    font-size:1rem;
+}
+/* Aktif kanal için sadece arka plan değişimi */
+.item.active{
+    background:#3d2b33;
+    border-color:var(--accent);
+}
 
-        #nav-sticky { background: #000; padding: 8px 10px; border-bottom: 1px solid #333; display: none; z-index: 45; }
+@media (orientation: landscape){
+    body{flex-direction:row;}
+    #player-wrapper{height:100dvh;flex:1;}
+    .list-area{width:300px;flex:none;}
+}
 
-        .card { padding:8px 12px; margin-bottom:5px; background:#222; border-radius:4px; display:flex; justify-content:space-between; align-items:center; border:1px solid #333; cursor:pointer; }
-        .card:hover, .card:focus { border-color: var(--primary); background: #333; }
-
-        .thin-back-btn { width: 100%; padding: 8px; font-size: 10px; text-align: center; background: #e50914; color: white; border: none; border-radius: 3px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
-        
-        .group-tag { font-size: 9px; color: #888; background: #111; padding: 2px 4px; border-radius: 2px; margin-left: 5px; }
-        .btn-copy { display: none; background:#333; color:#fff; border:none; padding:4px 8px; border-radius:3px; font-size:9px; cursor:pointer; }
-        .show-copy .btn-copy { display: block !important; }
-
-        .btn-sort { background:#222; color:#fff; border:1px solid #444; padding:4px 6px; border-radius:3px; font-size:10px; cursor:pointer; }
-        .loading { padding: 20px; text-align: center; color: var(--primary); font-size: 12px; }
-    </style>
+@media (orientation: landscape) and (max-width:768px){
+    .list-area{
+        width: 150px !important; 
+    }
+    .item{
+        padding: 4px;
+        gap: 5px;
+        font-size: 0.75rem;
+    }
+    .item img{
+        width: 18px;
+        height: 18px;
+    }
+}
+</style>
 </head>
 <body>
-
-<div id="app-grid">
-    <div id="player-side">
-        <video id="video" controls autoplay playsinline></video>
-        <input id="search" tabindex="0" placeholder="🔍 Kanal ara..." style="margin-top:10px;padding:8px;width:100%;background:#111;border:1px solid #333;color:white;border-radius:4px;" onkeyup="handleSearch()">
-    </div>
-    <div id="list-side">
-        <div id="header">
-            <span id="title" style="white-space:nowrap; font-size:12px;"><b>Zec IPTV</b></span>
-            <select id="sortOrder" tabindex="0" class="btn-sort" onchange="sortAndShowGroups()">
-                <option value="original">Varsayılan</option>
-                <option value="az">A-Z</option>
-                <option value="za">Z-A</option>
-            </select>
-            <input type="text" id="m3uUrl" tabindex="0" placeholder="URL..." style="padding:4px;background:#111;border:1px solid #444;color:white;width:60px;font-size:10px;">
-            <button onclick="pasteUrl()" tabindex="0" style="background:#444;color:white;border:none;padding:4px 6px;cursor:pointer;font-size:12px;">📋</button>
-            <button onclick="loadUrl()" tabindex="0" style="background:var(--primary);color:white;border:none;padding:4px 8px;cursor:pointer;font-size:10px;">Yükle</button>
-            <button onclick="document.getElementById('fileInput').click()" tabindex="0" style="background:transparent;border:1px solid #555;color:white;padding:4px 8px;cursor:pointer;font-size:10px;">Dosya</button>
-            <input type="file" id="fileInput" hidden accept=".m3u">
-        </div>
-        
-        <div id="nav-sticky">
-            <button class="thin-back-btn" tabindex="0" onclick="closeChannelList()">⬅ ANA MENÜYE DÖN</button>
-        </div>
-
-        <div class="list-wrapper">
-            <div id="group-list"></div>
-            <div id="channel-list"></div>
-        </div>
-    </div>
+<div id="player-wrapper"><video id="video" controls playsinline></video></div>
+<div class="list-area">
+<input type="text" id="search-input" placeholder="🔍 Arama...">
+<div id="list-container"></div>
 </div>
-
 <script>
-let allData = {}, originalGroupOrder = [], hls = null, searchTimer = null;
-const v = document.getElementById("video"), groupContainer = document.getElementById("group-list"), 
-      channelContainer = document.getElementById("channel-list"), nav = document.getElementById("nav-sticky");
+let tumVeri={}, grupListesi=[], aktifGrupIndex=0, aktifKanalIndex=0;
+const grupSirasi=["ulusal","sinema ve dizi","belgesel","ulusal haber","spor","çocuk & eğitim","yaşam & eğlence","yabancı haber","yabancı","müzik"];
 
-document.addEventListener('keydown', (e) => {
-    if(['ArrowUp', 'ArrowDown'].includes(e.key)) {
-        const focusable = Array.from(document.querySelectorAll('input, button, select, .card')).filter(el => el.offsetParent !== null);
-        let index = focusable.indexOf(document.activeElement);
-        if(e.key === 'ArrowDown') focusable[(index + 1) % focusable.length].focus();
-        if(e.key === 'ArrowUp') focusable[(index - 1 + focusable.length) % focusable.length].focus();
+async function veriCek(){
+    try{
+        const res = await fetch("https://boru-pc-tv.vercel.app/");
+        const text = await res.text();
+        const data = JSON.parse(text.match(/const channelsData = ([\s\S]*?);/)[1]);
+        let manuel = JSON.parse(localStorage.getItem("manuelKanallar")||"[]");
+        tumVeri = {};
+        Object.keys(data).forEach(grup=>{
+            let key = grup.toLowerCase();
+            if(key==="bilgilendirme") return;
+            if(!tumVeri[key]) tumVeri[key]=[];
+            data[grup].forEach(k=> tumVeri[key].push(k));
+        });
+        manuel.forEach(k=>{
+            let g=k.group.toLowerCase();
+            if(g==="bilgilendirme") return;
+            if(!tumVeri[g]) tumVeri[g]=[];
+            tumVeri[g].push(k);
+        });
+        grupListesi = grupSirasi.filter(g=>tumVeri[g] && tumVeri[g].length>0);
+        render();
+        oynatAktif();
+    }catch(e){console.log(e);}
+}
+
+function render(){
+    const container=document.getElementById("list-container");
+    const val=document.getElementById("search-input").value.toLowerCase();
+    const silMode=val==="kanal sil";
+    container.innerHTML="";
+    grupListesi.forEach((grup,gIndex)=>{
+        let kanallar=tumVeri[grup].filter(k=> silMode || val==="" || k.name.toLowerCase().includes(val));
+        if(!kanallar.length) return;
+        let gEl=document.createElement("div");
+        gEl.className="group";
+        gEl.innerText=grup;
+        container.appendChild(gEl);
+        kanallar.forEach((k,kIndex)=>{
+            let el=document.createElement("div");
+            el.className="item";
+            el.dataset.grup = gIndex;
+            el.dataset.kanal = kIndex;
+            if(gIndex===aktifGrupIndex && kIndex===aktifKanalIndex) el.classList.add("active");
+            el.innerHTML=`<img src="${k.logo||'https://via.placeholder.com/24'}"><span>${k.name}</span>`;
+            if(silMode){
+                let btn=document.createElement("span");
+                btn.className="delete-btn";
+                btn.innerText="✕";
+                btn.onclick=(e)=>{ e.stopPropagation(); kanalSil(k.name); };
+                el.appendChild(btn);
+            }
+            el.onclick=()=>{ aktifGrupIndex=gIndex; aktifKanalIndex=kIndex; updateActiveItem(); oynatAktif(); };
+            container.appendChild(el);
+        });
+    });
+}
+
+function updateActiveItem(){
+    document.querySelectorAll(".item").forEach(el=>el.classList.remove("active"));
+    const activeEl = document.querySelector(`.item[data-grup="${aktifGrupIndex}"][data-kanal="${aktifKanalIndex}"]`);
+    if(activeEl) {
+        activeEl.classList.add("active");
+        activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); // Odaklanmayı sağlar
+    }
+}
+
+function oynatAktif(){
+    let grup=grupListesi[aktifGrupIndex];
+    let kanal=tumVeri[grup][aktifKanalIndex];
+    if(!kanal) return;
+    oynat(kanal.url);
+    updateActiveItem();
+}
+
+function kanalSil(name){
+    let manuel = JSON.parse(localStorage.getItem("manuelKanallar")||"[]");
+    manuel = manuel.filter(k=>k.name!==name);
+    localStorage.setItem("manuelKanallar",JSON.stringify(manuel));
+    veriCek();
+}
+
+function oynat(url){
+    if(window.hls) window.hls.destroy();
+    const v=document.getElementById("video");
+    if(Hls.isSupported()){ window.hls=new Hls(); window.hls.loadSource(url); window.hls.attachMedia(v); }
+    else v.src=url;
+    v.play().catch(()=>{});
+}
+
+function togglePlayerSize(){
+    const wrapper=document.getElementById("player-wrapper");
+    wrapper.style.height=(wrapper.style.height==="100dvh"?"35vh":"100dvh");
+}
+
+document.addEventListener("keydown", e=>{
+    if(document.activeElement.id !== "search-input"){
+        let kanalSayisi=tumVeri[grupListesi[aktifGrupIndex]]?.length||0;
+        let wrapper=document.getElementById("player-wrapper");
+
+        switch(e.keyCode){
+            case 38: aktifKanalIndex=(aktifKanalIndex-1+kanalSayisi)%kanalSayisi; oynatAktif(); break;
+            case 40: aktifKanalIndex=(aktifKanalIndex+1)%kanalSayisi; oynatAktif(); break;
+            case 37: aktifGrupIndex=(aktifGrupIndex-1+grupListesi.length)%grupListesi.length; aktifKanalIndex=0; oynatAktif(); break;
+            case 39: document.getElementById("search-input").focus(); break;
+            case 13: 
+                let yeniIndex = `${aktifGrupIndex}-${aktifKanalIndex}`;
+                if(window.sonSecilenKanal === yeniIndex && wrapper.style.height !== "100dvh") {
+                    togglePlayerSize();
+                } else {
+                    oynatAktif();
+                    window.sonSecilenKanal = yeniIndex;
+                }
+                break;
+            case 8: case 461: case 10009: e.preventDefault(); togglePlayerSize(); break;
+        }
     }
 });
 
-async function pasteUrl() {
-    try { const text = await navigator.clipboard.readText(); document.getElementById("m3uUrl").value = text; } 
-    catch(e) { alert("Tarayıcı izni gerekli."); }
-}
-
-function parseM3U(text) {
-    allData = {}; originalGroupOrder = [];
-    groupContainer.innerHTML = '<div class="loading">İşleniyor...</div>';
-    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l !== "");
-    let i = 0;
-    function chunk() {
-        let limit = i + 5000;
-        while (i < lines.length && i < limit) {
-            if (lines[i].startsWith("#EXTINF")) {
-                let group = lines[i].match(/group-title="(.*?)"/)?.[1] || "Diğer";
-                let name = lines[i].split(",")[1]?.trim() || "İsimsiz Kanal";
-                let url = lines[i+1]?.startsWith("#") ? lines[i+2] : lines[i+1];
-                if (url && url.startsWith("http")) {
-                    if (!allData[group]) { allData[group] = []; originalGroupOrder.push(group); }
-                    allData[group].push({ name, url, group });
-                }
-            }
-            i++;
+document.getElementById("search-input").oninput=render;
+document.getElementById("search-input").onkeydown=e=>{
+    if(e.key==="Enter" && e.target.value.startsWith("ekle|")){
+        let v=e.target.value.split("|");
+        if(v.length>=4){
+            let m=JSON.parse(localStorage.getItem("manuelKanallar")||"[]");
+            m.push({group:v[1],name:v[2],url:v[3],logo:v[4]||""});
+            localStorage.setItem("manuelKanallar",JSON.stringify(m));
+            e.target.value=""; veriCek();
         }
-        if (i < lines.length) setTimeout(chunk, 0); else sortAndShowGroups();
     }
-    chunk();
-}
+};
 
-function sortAndShowGroups() {
-    groupContainer.innerHTML = "";
-    const sortVal = document.getElementById("sortOrder").value;
-    let groups = [...originalGroupOrder];
-    if (sortVal === "az") groups.sort((a, b) => a.localeCompare(b));
-    else if (sortVal === "za") groups.sort((a, b) => b.localeCompare(a));
-    groups.forEach(g => {
-        const div = document.createElement("div");
-        div.className = "card"; div.tabIndex = 0;
-        div.innerHTML = `<span>📁 ${g}</span> <small style="color:#666">${allData[g].length}</small>`;
-        div.onclick = () => renderChannelList(allData[g]);
-        groupContainer.appendChild(div);
-    });
-    closeChannelList();
-}
-
-function renderChannelList(channels) {
-    channelContainer.innerHTML = "";
-    channels.slice(0, 1000).forEach(ch => {
-        const div = document.createElement("div");
-        div.className = "card"; div.tabIndex = 0;
-        div.innerHTML = `<span>${ch.name}</span><button class="btn-copy" onclick="event.stopPropagation();copy('${ch.url}')">KOPYALA</button>`;
-        div.onclick = () => play(ch.url);
-        channelContainer.appendChild(div);
-    });
-    channelContainer.classList.add("active");
-    nav.style.display = "block";
-}
-
-function closeChannelList() { channelContainer.classList.remove("active"); nav.style.display = "none"; }
-
-function handleSearch() {
-    const val = document.getElementById("search").value.toLowerCase();
-    if (val === "kubi") { document.body.classList.add("show-copy"); document.getElementById("search").value = ""; return; }
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
-        channelContainer.innerHTML = "";
-        let count = 0;
-        for (let g of originalGroupOrder) {
-            for (let ch of allData[g]) {
-                if (ch.name.toLowerCase().includes(val)) {
-                    const div = document.createElement("div");
-                    div.className = "card"; div.tabIndex = 0;
-                    div.innerHTML = `<span>${ch.name} <span class="group-tag">${ch.group}</span></span><button class="btn-copy" onclick="event.stopPropagation();copy('${ch.url}')">KOPYALA</button>`;
-                    div.onclick = () => play(ch.url);
-                    channelContainer.appendChild(div);
-                    if (++count >= 200) break;
-                }
-            }
-        }
-        channelContainer.classList.add("active"); nav.style.display = "block";
-    }, 400);
-}
-
-function play(url) {
-    if (hls) hls.destroy();
-    if (Hls.isSupported()) { hls = new Hls(); hls.loadSource(url); hls.attachMedia(v); v.play(); }
-    else { v.src = url; v.play(); }
-}
-
-function copy(url) { navigator.clipboard.writeText(url).then(() => alert("Kopyalandı!")); }
-
-document.getElementById("fileInput").addEventListener("change", e => {
-    const reader = new FileReader(); reader.onload = e => parseM3U(e.target.result); reader.readAsText(e.target.files[0]);
-});
-
-async function loadUrl() {
-    const url = document.getElementById('m3uUrl').value;
-    if(!url) return;
-    try { groupContainer.innerHTML = '<div class="loading">İndiriliyor...</div>'; const res = await fetch(url); parseM3U(await res.text()); } 
-    catch(e) { alert("Hata!"); }
-}
+veriCek();
 </script>
 </body>
 </html>
