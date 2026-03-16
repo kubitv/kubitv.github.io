@@ -2,122 +2,114 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Zec IPTV - Tam Kontrol</title>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <style>
-:root{ --accent:#ff2a6d; --bg:#0e0e12; --card-bg:#242429; --text:#ffffff; }
-html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: sans-serif; overflow: hidden; }
+* { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
+body, html { width: 100%; height: 100%; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; position: fixed; inset: 0; }
 
-/* Sabit Grid - Ekran taşmasını engeller */
-#app-container { display: grid; grid-template-rows: 35vh 1fr; width: 100vw; height: 100vh; overflow: hidden; }
-@media (orientation: landscape) { #app-container { grid-template-rows: 1fr; grid-template-columns: 1fr 320px; } }
+#app { display: grid; width: 100vw; height: 100vh; grid-template-rows: 40vh 1fr; }
+@media (orientation: landscape) { #app { grid-template-rows: 1fr; grid-template-columns: 1fr 300px; } }
 
-#player-wrapper { background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+#video-area { background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 video { width: 100%; height: 100%; object-fit: contain; }
 
-.list-area { display: flex; flex-direction: column; background: #0e0e12; padding: 10px; overflow: hidden; width: 100%; box-sizing: border-box; }
-#search-input { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #333; background: #242429; color: #fff; text-align: center; font-size: 0.9rem; box-sizing: border-box; outline: none; }
+.controls { display: flex; flex-direction: column; background: #000; padding: 4px; height: 100%; overflow: hidden; }
+input { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #222; background: #111; color: #fff; text-align: center; margin-bottom: 4px; }
 
-#list-container { flex: 1; overflow-y: auto; overflow-x: hidden; }
-.group { color: var(--accent); font-size: 0.7rem; font-weight: bold; margin: 15px 0 5px; text-transform: uppercase; text-align: center; }
-.item { padding: 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; border: 1px solid #333; transition: 0.2s; }
-.item img { width: 24px; height: 24px; border-radius: 4px; object-fit: cover; }
-.item span { font-size: 0.85rem; white-space: nowrap; }
-.item.active { border-color: var(--accent); background: #35252b; }
-.delete-btn { color: #ff4d4d; font-weight: bold; margin-left: 8px; }
+#list { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
+.g-title { color: #ff2a6d; font-size: 0.65rem; font-weight: bold; margin: 8px 0 2px 0; text-transform: uppercase; text-align: center; }
 
-/* Tam ekran modu için performansı optimize et */
-.fullscreen-mode .list-area { display: none !important; }
-.fullscreen-mode #player-wrapper { grid-column: 1 / -1; grid-row: 1 / -1; }
+.item { display: flex; align-items: center; justify-content: center; padding: 4px; background: #111; margin-bottom: 2px; border-radius: 4px; gap: 6px; cursor: pointer; border: 1px solid #222; height: 32px; }
+.item.active { border-color: #ff2a6d; background: #332; }
+.item img { width: 20px; height: 20px; object-fit: cover; border-radius: 3px; }
+.item span { font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+.del { color: #f00; font-weight: bold; padding: 0 5px; cursor: pointer; z-index: 10; }
 </style>
 </head>
 <body>
 
-<div id="app-container">
-    <div id="player-wrapper" onclick="toggleFullscreen()">
-        <video id="video" controls playsinline></video>
+<div id="app">
+    <div id="video-area" onclick="if(document.fullscreenElement){document.exitFullscreen()}else{document.documentElement.requestFullscreen()}">
+        <video id="v" controls playsinline></video>
     </div>
-    <div class="list-area">
-        <input type="text" id="search-input" placeholder="🔍 Arama / ekle|grup|isim|url|logo">
-        <div id="list-container"></div>
+    <div class="controls">
+        <input id="in" placeholder="Ara (veya 'ekle|Grup|İsim|URL|Logo' / 'sil')">
+        <div id="list"></div>
     </div>
 </div>
 
 <script>
-const grupSirasi = ["ulusal", "sinema ve dizi", "belgesel", "spor", "haber", "müzik", "çocuk", "yaşam", "yabancı"];
-let tumVeri = {};
+const grupSirasi = ["ulusal", "sinema ve dizi", "belgesel", "ulusal haber", "spor", "çocuk & eğitim", "yaşam & eğlence", "yabancı haber", "yabancı", "müzik"];
+let data = {}, flatList = [], activeIdx = 0;
 
-async function veriCek(){
+async function init() {
     const res = await fetch("https://boru-pc-tv.vercel.app/");
-    const text = await res.text();
-    const data = JSON.parse(text.match(/const channelsData = ([\s\S]*?);/)[1]);
-    let manuel = JSON.parse(localStorage.getItem("manuelKanallar")||"[]");
-    
-    tumVeri = {};
-    Object.keys(data).forEach(g => tumVeri[g.toLowerCase()] = data[g]);
-    manuel.forEach(k => {
-        let g = k.group.toLowerCase();
-        if(!tumVeri[g]) tumVeri[g] = [];
-        tumVeri[g].push(k);
-    });
+    const json = JSON.parse((await res.text()).match(/const channelsData = ([\s\S]*?);/)[1]);
+    let custom = JSON.parse(localStorage.getItem("myCh") || "[]");
+    data = {};
+    Object.keys(json).forEach(g => data[g.toLowerCase()] = json[g]);
+    custom.forEach(c => { let g = c.g.toLowerCase(); if(!data[g]) data[g] = []; data[g].push(c); });
     render();
 }
 
-function render(){
-    const container = document.getElementById("list-container");
-    const val = document.getElementById("search-input").value.toLowerCase();
-    const silMode = (val === "kanal sil");
-    container.innerHTML = "";
+function render() {
+    const filter = document.getElementById("in").value.toLowerCase();
+    const list = document.getElementById("list");
+    list.innerHTML = "";
+    flatList = [];
     
-    grupSirasi.forEach(grup => {
-        if(!tumVeri[grup]) return;
-        let kanallar = tumVeri[grup].filter(k => silMode || val === "" || k.name.toLowerCase().includes(val));
-        if(kanallar.length > 0) {
-            container.innerHTML += `<div class="group">${grup}</div>`;
-            kanallar.forEach(k => {
-                container.innerHTML += `<div class="item" onclick="oynat('${k.url}')">
-                                            <img src="${k.logo || 'https://via.placeholder.com/24'}">
-                                            <span>${k.name}</span>
-                                            ${silMode ? `<span class="delete-btn" onclick="event.stopPropagation(); kanalSil('${k.name}')">✕</span>` : ''}
-                                        </div>`;
+    grupSirasi.forEach(g => {
+        let gLower = g.toLowerCase();
+        if(!data[gLower]) return;
+        let chans = data[gLower].filter(c => c.name.toLowerCase().includes(filter) || filter === "sil");
+        if(chans.length > 0) {
+            list.innerHTML += `<div class="g-title">${g}</div>`;
+            chans.forEach((c) => {
+                flatList.push(c);
+                let idx = flatList.length - 1;
+                list.innerHTML += `<div class="item ${idx === activeIdx ? 'active' : ''}" onclick="play(${idx})">
+                    <img src="${c.logo || 'https://via.placeholder.com/20'}">
+                    <span>${c.name}</span>
+                    ${filter === "sil" ? `<span class="del" onclick="event.stopPropagation(); del('${c.name}')">✕</span>` : ''}
+                </div>`;
             });
         }
     });
 }
 
-function kanalSil(name){
-    let m = JSON.parse(localStorage.getItem("manuelKanallar")||"[]");
-    m = m.filter(k => k.name !== name);
-    localStorage.setItem("manuelKanallar", JSON.stringify(m));
-    veriCek();
+function play(idx) {
+    activeIdx = idx;
+    document.getElementById("v").src = flatList[idx].url;
+    document.getElementById("v").play();
+    render();
+    document.querySelector('.active')?.scrollIntoView({block: 'center'});
 }
 
-function oynat(url){
-    const v = document.getElementById("video");
-    if(window.hls) window.hls.destroy();
-    if(Hls.isSupported()){ window.hls = new Hls(); window.hls.loadSource(url); window.hls.attachMedia(v); v.play().catch(()=>{}); }
-    else v.src = url;
+function del(name) {
+    let m = JSON.parse(localStorage.getItem("myCh") || "[]");
+    localStorage.setItem("myCh", JSON.stringify(m.filter(i => i.name !== name)));
+    init();
 }
 
-function toggleFullscreen() {
-    const app = document.getElementById("app-container");
-    if (!document.fullscreenElement) app.requestFullscreen().then(() => app.classList.add("fullscreen-mode"));
-    else document.exitFullscreen().then(() => app.classList.remove("fullscreen-mode"));
-}
+document.onkeydown = (e) => {
+    if(e.key === "ArrowDown") { activeIdx = Math.min(activeIdx + 1, flatList.length - 1); play(activeIdx); }
+    if(e.key === "ArrowUp") { activeIdx = Math.max(activeIdx - 1, 0); play(activeIdx); }
+};
 
-document.getElementById("search-input").addEventListener("keydown", e => {
+document.getElementById("in").onkeydown = (e) => {
     if(e.key === "Enter" && e.target.value.startsWith("ekle|")) {
-        let v = e.target.value.split("|");
-        let m = JSON.parse(localStorage.getItem("manuelKanallar")||"[]");
-        m.push({group:v[1], name:v[2], url:v[3], logo:v[4]||""});
-        localStorage.setItem("manuelKanallar", JSON.stringify(m));
-        e.target.value = ""; veriCek();
+        let p = e.target.value.split("|");
+        let m = JSON.parse(localStorage.getItem("myCh") || "[]");
+        m.push({g:p[1], name:p[2], url:p[3], logo:p[4]});
+        localStorage.setItem("myCh", JSON.stringify(m));
+        e.target.value = ""; init();
     }
-});
+};
 
-document.getElementById("search-input").addEventListener("input", render);
-veriCek();
+document.getElementById("in").oninput = render;
+init();
 </script>
 </body>
 </html>
