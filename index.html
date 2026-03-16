@@ -6,270 +6,210 @@
 <title>Zec IPTV</title>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <style>
-:root{
-    --accent:#ff2a6d;
-    --bg:#0e0e12;
-    --card-bg:#242429;
-    --text:#ffffff;
-}
-html,body{
-    margin:0;
-    padding:0;
-    height:100dvh;
-    background:var(--bg);
-    font-family:'Segoe UI',sans-serif;
-    overflow:hidden;
-}
-body{
-    display:flex;
-    flex-direction:column;
-    color:var(--text);
-}
-#player-wrapper{
-    height:35vh;
-    background:#000;
-    flex-shrink:0;
-    transition: height 0.3s;
-}
-video{
-    width:100%;
-    height:100%;
-    object-fit:contain;
-    background:#000;
-}
-.list-area{
-    flex:1;
-    display:flex;
-    flex-direction:column;
-    padding:8px;
-    overflow:hidden;
-    min-width:120px;
-}
-#search-input{
-    width:100%;
-    padding:8px;
-    border-radius:6px;
-    border:1px solid #33333a;
-    background:#1c1c21;
-    color:white;
-    margin-bottom:8px;
-    box-sizing:border-box;
-    font-size:0.8rem;
-}
-#list-container{
-    flex:1;
-    overflow-y:auto;
-}
-.item{
-    padding:6px;
-    margin-bottom:4px;
-    background:var(--card-bg);
-    border-radius:6px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:8px;
-    cursor:pointer;
-    border:1px solid #33333a;
-    white-space:nowrap;
-    text-align:center;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    font-size:0.8rem;
-}
-.item img{
-    width:20px;
-    height:20px;
-    border-radius:4px;
-    object-fit:cover;
-    background:#333;
-}
-.group{
-    text-align:center;
-    color:var(--accent);
-    font-size:0.65rem;
-    margin:12px 0 4px;
-    font-weight:bold;
-    text-transform:uppercase;
-}
-.delete-btn{
-    margin-left:auto;
-    color:red;
-    cursor:pointer;
-    font-weight:bold;
-    padding:0 4px;
-    font-size:1rem;
-}
-/* Aktif kanal için sadece arka plan değişimi */
-.item.active{
-    background:#3d2b33;
-    border-color:var(--accent);
-}
+    :root{ --accent:#ff2a6d; --bg:#0e0e12; --card-bg:#242429; --text:#ffffff; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+    
+    html, body {
+        margin: 0; padding: 0; width: 100vw; height: 100dvh;
+        background: var(--bg); color: var(--text);
+        font-family: sans-serif; overflow: hidden;
+    }
 
-@media (orientation: landscape){
-    body{flex-direction:row;}
-    #player-wrapper{height:100dvh;flex:1;}
-    .list-area{width:300px;flex:none;}
-}
+    body { display: flex; flex-direction: column; }
 
-@media (orientation: landscape) and (max-width:768px){
-    .list-area{
-        width: 150px !important; 
+    /* Player Alanı */
+    #player-wrapper { height: 35dvh; background: #000; flex-shrink: 0; transition: height 0.3s; position: relative; }
+    video { width: 100%; height: 100%; object-fit: contain; }
+
+    /* Liste Alanı */
+    .list-area { flex: 1; display: flex; flex-direction: column; padding: 4px; overflow: hidden; width: 100vw; }
+    
+    #search-input { 
+        width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #333; 
+        background: #1c1c21; color: white; font-size: 0.8rem; margin-bottom: 4px;
     }
-    .item{
-        padding: 4px;
-        gap: 5px;
-        font-size: 0.75rem;
+
+    #list-container { flex: 1; overflow-y: auto; overflow-x: hidden; scroll-behavior: smooth; }
+    
+    /* KANAL SATIRI: Hem Dar Hem Ortalı */
+    .item { 
+        padding: 6px; margin-bottom: 3px; background: var(--card-bg); 
+        border-radius: 4px; display: flex; align-items: center; 
+        justify-content: center; /* İçeriği yatayda ortalar */
+        gap: 6px; cursor: pointer; border: 2px solid transparent; 
+        font-size: 0.75rem; white-space: nowrap; overflow: hidden;
     }
-    .item img{
-        width: 18px;
-        height: 18px;
+    .item img { width: 18px; height: 18px; border-radius: 2px; object-fit: cover; flex-shrink: 0; }
+    .item span { overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; }
+    .item.active { border-color: var(--accent); background: #35252b; }
+    
+    .delete-btn { color: #ff4444; font-weight: bold; cursor: pointer; display: none; margin-left: 5px; }
+    .sil-modu .delete-btn { display: inline-block; }
+
+    .group-label { text-align: center; color: var(--accent); font-size: 0.6rem; margin: 8px 0 3px; font-weight: bold; text-transform: uppercase; opacity: 0.7; }
+
+    /* MOBİL YATAY (LANDSCAPE) - Maksimum Daraltılmış ve Ortalı */
+    @media (orientation: landscape) and (max-width: 899px){ 
+        body { flex-direction: row; } 
+        #player-wrapper { height: 100dvh; flex: 1; } 
+        /* Genişlik 130px'e sabitlendi, esnemesi engellendi */
+        .list-area { 
+            width: 130px !important; min-width: 130px !important; max-width: 130px !important; 
+            flex-shrink: 0; border-left: 1px solid #333; padding: 2px;
+        } 
+        .item { padding: 4px; font-size: 0.65rem; gap: 4px; }
+        .item img { width: 14px; height: 14px; }
     }
-}
+    
+    /* TV / PC - Büyük Ekran */
+    @media (min-width: 900px){
+        body { flex-direction: row; }
+        #player-wrapper { height: 100dvh; flex: 1; }
+        .list-area { width: 350px !important; min-width: 350px !important; padding: 12px; }
+        .item { padding: 10px; font-size: 1rem; gap: 12px; }
+        .item img { width: 24px; height: 24px; }
+    }
 </style>
 </head>
 <body>
-<div id="player-wrapper"><video id="video" controls playsinline></video></div>
-<div class="list-area">
-<input type="text" id="search-input" placeholder="🔍 Arama...">
-<div id="list-container"></div>
-</div>
-<script>
-let tumVeri={}, grupListesi=[], aktifGrupIndex=0, aktifKanalIndex=0;
-const grupSirasi=["ulusal","sinema ve dizi","belgesel","ulusal haber","spor","çocuk & eğitim","yaşam & eğlence","yabancı haber","yabancı","müzik"];
 
-async function veriCek(){
-    try{
-        const res = await fetch("https://boru-pc-tv.vercel.app/");
+<div id="player-wrapper"><video id="video" autoplay playsinline></video></div>
+<div class="list-area">
+    <input type="text" id="search-input" placeholder="🔍 Ara...">
+    <div id="list-container"></div>
+</div>
+
+<script>
+// GRUP SIRALAMASI (Küçük harf duyarlı)
+const grupSiralamasi = ["ulusal", "spor", "sinema ve dizi", "belgesel", "çocuk & eğitim", "ulusal haber", "yaşam & eğlence", "müzik", "yabancı haber", "yabancı"];
+
+const _0xUrl = atob("aHR0cHM6Ly9ib3J1LXBjLXR2LnZlcmNlbC5hcHAv");
+let tumData = {}, aktifGrupIdx = 0, aktifKanalIdx = 0;
+
+async function veriYukle() {
+    try {
+        const res = await fetch(_0xUrl);
         const text = await res.text();
-        const data = JSON.parse(text.match(/const channelsData = ([\s\S]*?);/)[1]);
-        let manuel = JSON.parse(localStorage.getItem("manuelKanallar")||"[]");
-        tumVeri = {};
-        Object.keys(data).forEach(grup=>{
-            let key = grup.toLowerCase();
-            if(key==="bilgilendirme") return;
-            if(!tumVeri[key]) tumVeri[key]=[];
-            data[grup].forEach(k=> tumVeri[key].push(k));
+        const onlineData = JSON.parse(text.match(/const channelsData = ([\s\S]*?);/)[1]);
+        let localData = JSON.parse(localStorage.getItem("zec_kanallar") || "[]");
+        
+        tumData = {};
+        Object.keys(onlineData).forEach(g => {
+            if(g.toLowerCase() !== "bilgilendirme") tumData[g.toLowerCase()] = onlineData[g];
         });
-        manuel.forEach(k=>{
-            let g=k.group.toLowerCase();
-            if(g==="bilgilendirme") return;
-            if(!tumVeri[g]) tumVeri[g]=[];
-            tumVeri[g].push(k);
+        localData.forEach(k => {
+            let g = k.group.toLowerCase();
+            if(!tumData[g]) tumData[g] = [];
+            tumData[g].push(k);
         });
-        grupListesi = grupSirasi.filter(g=>tumVeri[g] && tumVeri[g].length>0);
+
         render();
-        oynatAktif();
-    }catch(e){console.log(e);}
+        oynat();
+    } catch(e) { console.error(e); }
 }
 
-function render(){
-    const container=document.getElementById("list-container");
-    const val=document.getElementById("search-input").value.toLowerCase();
-    const silMode=val==="kanal sil";
-    container.innerHTML="";
-    grupListesi.forEach((grup,gIndex)=>{
-        let kanallar=tumVeri[grup].filter(k=> silMode || val==="" || k.name.toLowerCase().includes(val));
-        if(!kanallar.length) return;
-        let gEl=document.createElement("div");
-        gEl.className="group";
-        gEl.innerText=grup;
-        container.appendChild(gEl);
-        kanallar.forEach((k,kIndex)=>{
-            let el=document.createElement("div");
-            el.className="item";
-            el.dataset.grup = gIndex;
-            el.dataset.kanal = kIndex;
-            if(gIndex===aktifGrupIndex && kIndex===aktifKanalIndex) el.classList.add("active");
-            el.innerHTML=`<img src="${k.logo||'https://via.placeholder.com/24'}"><span>${k.name}</span>`;
-            if(silMode){
-                let btn=document.createElement("span");
-                btn.className="delete-btn";
-                btn.innerText="✕";
-                btn.onclick=(e)=>{ e.stopPropagation(); kanalSil(k.name); };
-                el.appendChild(btn);
-            }
-            el.onclick=()=>{ aktifGrupIndex=gIndex; aktifKanalIndex=kIndex; updateActiveItem(); oynatAktif(); };
+function render() {
+    const container = document.getElementById("list-container");
+    const ara = document.getElementById("search-input").value.toLowerCase();
+    const isSilMode = ara === "kanal sil";
+    container.innerHTML = "";
+    container.classList.toggle("sil-modu", isSilMode);
+
+    grupSiralamasi.forEach(grupKey => {
+        if(!tumData[grupKey]) return;
+        let kanallar = tumData[grupKey].filter(k => k.name.toLowerCase().includes(ara) || isSilMode || ara.startsWith("ekle|"));
+        if(kanallar.length === 0) return;
+
+        let gDiv = document.createElement("div");
+        gDiv.className = "group-label"; gDiv.innerText = grupKey;
+        container.appendChild(gDiv);
+
+        kanallar.forEach(k => {
+            let el = document.createElement("div");
+            el.className = "item";
+            el.innerHTML = `<img src="${k.logo || ''}" onerror="this.src='https://via.placeholder.com/20?text=?'"><span>${k.name}</span><div class="delete-btn" onclick="event.stopPropagation(); kanalSil('${k.name}')">✕</div>`;
+            el.onclick = () => { 
+                aktifGrupIdx = grupSiralamasi.indexOf(grupKey);
+                aktifKanalIdx = tumData[grupKey].indexOf(k);
+                updateFocus();
+                oynat();
+            };
             container.appendChild(el);
         });
     });
+    updateFocus();
 }
 
-function updateActiveItem(){
-    document.querySelectorAll(".item").forEach(el=>el.classList.remove("active"));
-    const activeEl = document.querySelector(`.item[data-grup="${aktifGrupIndex}"][data-kanal="${aktifKanalIndex}"]`);
-    if(activeEl) {
-        activeEl.classList.add("active");
-        activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); // Odaklanmayı sağlar
-    }
+function updateFocus() {
+    const items = document.querySelectorAll(".item");
+    const currentKanal = tumData[grupSiralamasi[aktifGrupIdx]]?.[aktifKanalIdx];
+    items.forEach(el => {
+        const active = currentKanal && el.innerText.includes(currentKanal.name);
+        el.classList.toggle("active", active);
+        if(active) el.scrollIntoView({ block: "center", behavior: "smooth" });
+    });
 }
 
-function oynatAktif(){
-    let grup=grupListesi[aktifGrupIndex];
-    let kanal=tumVeri[grup][aktifKanalIndex];
+function oynat() {
+    const kanal = tumData[grupSiralamasi[aktifGrupIdx]]?.[aktifKanalIdx];
     if(!kanal) return;
-    oynat(kanal.url);
-    updateActiveItem();
-}
-
-function kanalSil(name){
-    let manuel = JSON.parse(localStorage.getItem("manuelKanallar")||"[]");
-    manuel = manuel.filter(k=>k.name!==name);
-    localStorage.setItem("manuelKanallar",JSON.stringify(manuel));
-    veriCek();
-}
-
-function oynat(url){
+    const v = document.getElementById("video");
     if(window.hls) window.hls.destroy();
-    const v=document.getElementById("video");
-    if(Hls.isSupported()){ window.hls=new Hls(); window.hls.loadSource(url); window.hls.attachMedia(v); }
-    else v.src=url;
-    v.play().catch(()=>{});
+    if(Hls.isSupported()){
+        window.hls = new Hls(); window.hls.loadSource(kanal.url); window.hls.attachMedia(v);
+    } else v.src = kanal.url;
 }
 
-function togglePlayerSize(){
-    const wrapper=document.getElementById("player-wrapper");
-    wrapper.style.height=(wrapper.style.height==="100dvh"?"35vh":"100dvh");
+function kanalSil(name) {
+    let local = JSON.parse(localStorage.getItem("zec_kanallar") || "[]");
+    local = local.filter(k => k.name !== name);
+    localStorage.setItem("zec_kanallar", JSON.stringify(local));
+    veriYukle();
 }
 
-document.addEventListener("keydown", e=>{
-    if(document.activeElement.id !== "search-input"){
-        let kanalSayisi=tumVeri[grupListesi[aktifGrupIndex]]?.length||0;
-        let wrapper=document.getElementById("player-wrapper");
+function kanalEkle(str) {
+    const p = str.split("|");
+    if(p.length < 4) return alert("Hata! ekle|Grup|Ad|Link|Logo");
+    let local = JSON.parse(localStorage.getItem("zec_kanallar") || "[]");
+    local.push({ group: p[1], name: p[2], url: p[3], logo: p[4] || "" });
+    localStorage.setItem("zec_kanallar", JSON.stringify(local));
+    document.getElementById("search-input").value = "";
+    veriYukle();
+}
 
-        switch(e.keyCode){
-            case 38: aktifKanalIndex=(aktifKanalIndex-1+kanalSayisi)%kanalSayisi; oynatAktif(); break;
-            case 40: aktifKanalIndex=(aktifKanalIndex+1)%kanalSayisi; oynatAktif(); break;
-            case 37: aktifGrupIndex=(aktifGrupIndex-1+grupListesi.length)%grupListesi.length; aktifKanalIndex=0; oynatAktif(); break;
-            case 39: document.getElementById("search-input").focus(); break;
-            case 13: 
-                let yeniIndex = `${aktifGrupIndex}-${aktifKanalIndex}`;
-                if(window.sonSecilenKanal === yeniIndex && wrapper.style.height !== "100dvh") {
-                    togglePlayerSize();
-                } else {
-                    oynatAktif();
-                    window.sonSecilenKanal = yeniIndex;
-                }
-                break;
-            case 8: case 461: case 10009: e.preventDefault(); togglePlayerSize(); break;
+document.getElementById("search-input").onkeydown = (e) => {
+    if(e.keyCode === 13 && e.target.value.startsWith("ekle|")) kanalEkle(e.target.value);
+};
+document.getElementById("search-input").oninput = render;
+
+// Kumanda Kontrolleri
+document.addEventListener("keydown", e => {
+    if(document.activeElement.id === "search-input") return;
+    if([8, 461, 10009].includes(e.keyCode)) { // Geri
+        e.preventDefault();
+        const p = document.getElementById("player-wrapper");
+        p.style.height = (p.style.height === "100dvh" ? "35dvh" : "100dvh");
+    }
+    if(e.keyCode === 38 || e.keyCode === 40) { // Yukarı - Aşağı
+        e.preventDefault();
+        if(e.keyCode === 38) {
+            aktifKanalIdx--;
+            if(aktifKanalIdx < 0) {
+                aktifGrupIdx = (aktifGrupIdx - 1 + grupSiralamasi.length) % grupSiralamasi.length;
+                aktifKanalIdx = tumData[grupSiralamasi[aktifGrupIdx]].length - 1;
+            }
+        } else {
+            aktifKanalIdx++;
+            if(aktifKanalIdx >= tumData[grupSiralamasi[aktifGrupIdx]].length) {
+                aktifGrupIdx = (aktifGrupIdx + 1) % grupSiralamasi.length;
+                aktifKanalIdx = 0;
+            }
         }
+        updateFocus(); oynat();
     }
 });
 
-document.getElementById("search-input").oninput=render;
-document.getElementById("search-input").onkeydown=e=>{
-    if(e.key==="Enter" && e.target.value.startsWith("ekle|")){
-        let v=e.target.value.split("|");
-        if(v.length>=4){
-            let m=JSON.parse(localStorage.getItem("manuelKanallar")||"[]");
-            m.push({group:v[1],name:v[2],url:v[3],logo:v[4]||""});
-            localStorage.setItem("manuelKanallar",JSON.stringify(m));
-            e.target.value=""; veriCek();
-        }
-    }
-};
-
-veriCek();
+veriYukle();
 </script>
 </body>
 </html>
