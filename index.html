@@ -3,28 +3,33 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Zec IPTV Pro</title>
+<title>Zec IPTV - Tam Kontrol</title>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <style>
 :root{ --accent:#ff2a6d; --bg:#0e0e12; --card-bg:#242429; --text:#ffffff; }
-html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: sans-serif; overflow: hidden; }
 
-#app-container { display: grid; grid-template-rows: 35vh 1fr; width: 100vw; height: 100vh; }
+/* Sabit Grid - Ekran taşmasını engeller */
+#app-container { display: grid; grid-template-rows: 35vh 1fr; width: 100vw; height: 100vh; overflow: hidden; }
 @media (orientation: landscape) { #app-container { grid-template-rows: 1fr; grid-template-columns: 1fr 320px; } }
 
 #player-wrapper { background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 video { width: 100%; height: 100%; object-fit: contain; }
 
-.list-area { display: flex; flex-direction: column; background: #1c1c21; padding: 10px; overflow: hidden; width: 100%; box-sizing: border-box; }
-#search-input { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #333; background: #242429; color: white; text-align: center; font-size: 0.9rem; box-sizing: border-box; }
+.list-area { display: flex; flex-direction: column; background: #0e0e12; padding: 10px; overflow: hidden; width: 100%; box-sizing: border-box; }
+#search-input { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #333; background: #242429; color: #fff; text-align: center; font-size: 0.9rem; box-sizing: border-box; outline: none; }
 
-#list-container { flex: 1; overflow-y: auto; }
-.item { padding: 6px; margin-bottom: 5px; background: var(--card-bg); border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; border: 1px solid #333; height: 32px; }
-.item img { width: 22px; height: 22px; border-radius: 3px; object-fit: cover; }
-.item span { font-size: 0.8rem; font-weight: 500; white-space: nowrap; overflow: hidden; }
+#list-container { flex: 1; overflow-y: auto; overflow-x: hidden; }
+.group { color: var(--accent); font-size: 0.7rem; font-weight: bold; margin: 15px 0 5px; text-transform: uppercase; text-align: center; }
+.item { padding: 8px; margin-bottom: 5px; background: var(--card-bg); border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; border: 1px solid #333; transition: 0.2s; }
+.item img { width: 24px; height: 24px; border-radius: 4px; object-fit: cover; }
+.item span { font-size: 0.85rem; white-space: nowrap; }
 .item.active { border-color: var(--accent); background: #35252b; }
-.delete-btn { color: #ff4d4d; font-weight: bold; margin-left: 10px; cursor: pointer; }
-.group { color: var(--accent); font-size: 0.65rem; font-weight: bold; margin: 12px 0 5px; text-transform: uppercase; text-align: center; }
+.delete-btn { color: #ff4d4d; font-weight: bold; margin-left: 8px; }
+
+/* Tam ekran modu için performansı optimize et */
+.fullscreen-mode .list-area { display: none !important; }
+.fullscreen-mode #player-wrapper { grid-column: 1 / -1; grid-row: 1 / -1; }
 </style>
 </head>
 <body>
@@ -34,37 +39,29 @@ video { width: 100%; height: 100%; object-fit: contain; }
         <video id="video" controls playsinline></video>
     </div>
     <div class="list-area">
-        <input type="text" id="search-input" placeholder="🔍 Kanal Ara...">
+        <input type="text" id="search-input" placeholder="🔍 Arama / ekle|grup|isim|url|logo">
         <div id="list-container"></div>
     </div>
 </div>
 
 <script>
-let tumVeri = {}, grupListesi = [], aktifGrupIndex = 0, aktifKanalIndex = 0;
-const grupSirasi = ["ulusal","sinema ve dizi","belgesel","ulusal haber","spor","çocuk & eğitim","yaşam & eğlence","yabancı haber","yabancı","müzik"];
+const grupSirasi = ["ulusal", "sinema ve dizi", "belgesel", "spor", "haber", "müzik", "çocuk", "yaşam", "yabancı"];
+let tumVeri = {};
 
 async function veriCek(){
-    try {
-        const res = await fetch("https://boru-pc-tv.vercel.app/");
-        const text = await res.text();
-        const data = JSON.parse(text.match(/const channelsData = ([\s\S]*?);/)[1]);
-        let manuel = JSON.parse(localStorage.getItem("manuelKanallar")||"[]");
-        
-        tumVeri = {};
-        Object.keys(data).forEach(g=>{
-            let key = g.toLowerCase();
-            if(!tumVeri[key]) tumVeri[key]=[];
-            tumVeri[key].push(...data[g]);
-        });
-        manuel.forEach(k=>{
-            let g=k.group.toLowerCase();
-            if(!tumVeri[g]) tumVeri[g]=[];
-            tumVeri[g].push(k);
-        });
-        grupListesi = grupSirasi.filter(g => tumVeri[g]);
-        render();
-        oynatAktif();
-    } catch(e) { console.log(e); }
+    const res = await fetch("https://boru-pc-tv.vercel.app/");
+    const text = await res.text();
+    const data = JSON.parse(text.match(/const channelsData = ([\s\S]*?);/)[1]);
+    let manuel = JSON.parse(localStorage.getItem("manuelKanallar")||"[]");
+    
+    tumVeri = {};
+    Object.keys(data).forEach(g => tumVeri[g.toLowerCase()] = data[g]);
+    manuel.forEach(k => {
+        let g = k.group.toLowerCase();
+        if(!tumVeri[g]) tumVeri[g] = [];
+        tumVeri[g].push(k);
+    });
+    render();
 }
 
 function render(){
@@ -73,78 +70,53 @@ function render(){
     const silMode = (val === "kanal sil");
     container.innerHTML = "";
     
-    grupListesi.forEach((grup, gIdx)=>{
+    grupSirasi.forEach(grup => {
+        if(!tumVeri[grup]) return;
         let kanallar = tumVeri[grup].filter(k => silMode || val === "" || k.name.toLowerCase().includes(val));
-        if(!kanallar.length) return;
-        
-        let gEl = document.createElement("div"); gEl.className="group"; gEl.innerText=grup;
-        container.appendChild(gEl);
-        
-        kanallar.forEach(k=>{
-            let el = document.createElement("div");
-            el.className="item";
-            el.innerHTML = `<img src="${k.logo || 'https://via.placeholder.com/22'}"><span>${k.name}</span>`;
-            if(silMode) {
-                let btn = document.createElement("span"); btn.className="delete-btn"; btn.innerText="✕";
-                btn.onclick = (e) => { e.stopPropagation(); kanalSil(k.name); };
-                el.appendChild(btn);
-            }
-            el.onclick = () => { aktifGrupIndex = gIdx; aktifKanalIndex = tumVeri[grup].indexOf(k); updateActive(); oynatAktif(); };
-            container.appendChild(el);
-        });
+        if(kanallar.length > 0) {
+            container.innerHTML += `<div class="group">${grup}</div>`;
+            kanallar.forEach(k => {
+                container.innerHTML += `<div class="item" onclick="oynat('${k.url}')">
+                                            <img src="${k.logo || 'https://via.placeholder.com/24'}">
+                                            <span>${k.name}</span>
+                                            ${silMode ? `<span class="delete-btn" onclick="event.stopPropagation(); kanalSil('${k.name}')">✕</span>` : ''}
+                                        </div>`;
+            });
+        }
     });
-    updateActive();
 }
 
 function kanalSil(name){
     let m = JSON.parse(localStorage.getItem("manuelKanallar")||"[]");
-    m = m.filter(k=>k.name!==name);
+    m = m.filter(k => k.name !== name);
     localStorage.setItem("manuelKanallar", JSON.stringify(m));
     veriCek();
 }
 
-function updateActive(){
-    document.querySelectorAll(".item").forEach(el => {
-        let name = el.querySelector("span").innerText;
-        el.classList.toggle("active", name === tumVeri[grupListesi[aktifGrupIndex]][aktifKanalIndex].name);
-    });
-}
-
-function oynatAktif(){
-    if(!tumVeri[grupListesi[aktifGrupIndex]]) return;
-    let kanal = tumVeri[grupListesi[aktifGrupIndex]][aktifKanalIndex];
+function oynat(url){
     const v = document.getElementById("video");
     if(window.hls) window.hls.destroy();
-    if(Hls.isSupported()){ window.hls = new Hls(); window.hls.loadSource(kanal.url); window.hls.attachMedia(v); }
-    else v.src = kanal.url;
-    v.play().catch(()=>{});
+    if(Hls.isSupported()){ window.hls = new Hls(); window.hls.loadSource(url); window.hls.attachMedia(v); v.play().catch(()=>{}); }
+    else v.src = url;
 }
 
 function toggleFullscreen() {
     const app = document.getElementById("app-container");
-    if (!document.fullscreenElement) app.requestFullscreen().catch(()=>{});
-    else document.exitFullscreen();
+    if (!document.fullscreenElement) app.requestFullscreen().then(() => app.classList.add("fullscreen-mode"));
+    else document.exitFullscreen().then(() => app.classList.remove("fullscreen-mode"));
 }
 
-document.addEventListener("keydown", e => {
-    if(document.activeElement.id === "search-input") return;
-    if(e.keyCode === 13) toggleFullscreen();
-    if(e.keyCode === 38) { aktifKanalIndex = Math.max(0, aktifKanalIndex - 1); oynatAktif(); updateActive(); }
-    if(e.keyCode === 40) { aktifKanalIndex = Math.min(tumVeri[grupListesi[aktifGrupIndex]].length - 1, aktifKanalIndex + 1); oynatAktif(); updateActive(); }
-});
-
-document.getElementById("search-input").addEventListener("input", render);
 document.getElementById("search-input").addEventListener("keydown", e => {
     if(e.key === "Enter" && e.target.value.startsWith("ekle|")) {
         let v = e.target.value.split("|");
         let m = JSON.parse(localStorage.getItem("manuelKanallar")||"[]");
         m.push({group:v[1], name:v[2], url:v[3], logo:v[4]||""});
         localStorage.setItem("manuelKanallar", JSON.stringify(m));
-        e.target.value = "";
-        veriCek();
+        e.target.value = ""; veriCek();
     }
 });
 
+document.getElementById("search-input").addEventListener("input", render);
 veriCek();
 </script>
 </body>
