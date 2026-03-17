@@ -3,112 +3,171 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Zec IPTV - Tam Kontrol</title>
+<title>Zec IPTV Pro</title>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
-body, html { width: 100%; height: 100%; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; position: fixed; inset: 0; }
+* { box-sizing:border-box; margin:0; padding:0; outline:none; -webkit-tap-highlight-color:transparent; }
+html, body { width:100%; height:100svh; min-height:100svh; background:#000; overflow:hidden; }
+#app { display:flex; flex-direction:column; width:100%; height:100%; min-height:100svh; background:#000; }
+#video-area { width:100%; height:35vh; display:flex; align-items:center; justify-content:center; background:#000; flex-shrink:0; }
+video { width:100%; height:100%; object-fit:contain; background:#000; }
+.controls { flex:1; display:flex; flex-direction:column; padding:5px; background:#000; overflow:hidden; }
+input#in { width:100%; padding:10px; border-radius:4px; border:1px solid #222; background:#111; color:#fff; text-align:center; margin-bottom:6px; font-size:16px; flex-shrink:0; }
+#list { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-bottom:env(safe-area-inset-bottom); }
+.g-title { color:#ff2a6d; font-size:0.65rem; font-weight:bold; margin:10px 0 5px 0; text-transform:uppercase; text-align:center; }
+.item { display:flex; align-items:center; justify-content:center; padding:8px 10px; background:#111; margin-bottom:3px; border-radius:4px; gap:10px; cursor:pointer; border:1px solid #222; min-height:40px; }
+.item.active { border-color:#ff2a6d; background:#1a1a1a; }
+.item img { width:22px; height:22px; object-fit:contain; border-radius:2px; }
+.item span { font-size:0.85rem; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:60%; }
+.item button { background:#ff2a6d; border:none; color:#fff; padding:2px 6px; border-radius:2px; font-size:0.7rem; cursor:pointer; display:none; }
+.item.sil-mod button { display:inline-block; }
 
-#app { display: grid; width: 100vw; height: 100vh; grid-template-rows: 40vh 1fr; }
-@media (orientation: landscape) { #app { grid-template-rows: 1fr; grid-template-columns: 1fr 300px; } }
-
-#video-area { background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-video { width: 100%; height: 100%; object-fit: contain; }
-
-.controls { display: flex; flex-direction: column; background: #000; padding: 4px; height: 100%; overflow: hidden; }
-input { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #222; background: #111; color: #fff; text-align: center; margin-bottom: 4px; }
-
-#list { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
-.g-title { color: #ff2a6d; font-size: 0.65rem; font-weight: bold; margin: 8px 0 2px 0; text-transform: uppercase; text-align: center; }
-
-.item { display: flex; align-items: center; justify-content: center; padding: 4px; background: #111; margin-bottom: 2px; border-radius: 4px; gap: 6px; cursor: pointer; border: 1px solid #222; height: 32px; }
-.item.active { border-color: #ff2a6d; background: #332; }
-.item img { width: 20px; height: 20px; object-fit: cover; border-radius: 3px; }
-.item span { font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
-.del { color: #f00; font-weight: bold; padding: 0 5px; cursor: pointer; z-index: 10; }
+@media (orientation:landscape){
+    #app { flex-direction:row; }
+    #video-area { width:70%; height:100%; }
+    .controls { width:30%; height:100%; border-left:1px solid #1a1a1a; }
+}
 </style>
 </head>
 <body>
-
 <div id="app">
-    <div id="video-area" onclick="if(document.fullscreenElement){document.exitFullscreen()}else{document.documentElement.requestFullscreen()}">
+    <div id="video-area" onclick="document.documentElement.requestFullscreen().catch(()=>{})">
         <video id="v" controls playsinline></video>
     </div>
     <div class="controls">
-        <input id="in" placeholder="Ara (veya 'ekle|Grup|İsim|URL|Logo' / 'sil')">
+        <input id="in" placeholder="Kanal Ara...">
         <div id="list"></div>
     </div>
 </div>
 
 <script>
-const grupSirasi = ["ulusal", "sinema ve dizi", "belgesel", "ulusal haber", "spor", "çocuk & eğitim", "yaşam & eğlence", "yabancı haber", "yabancı", "müzik"];
-let data = {}, flatList = [], activeIdx = 0;
+const grupSirasi=["ulusal","sinema ve dizi","belgesel","ulusal haber","spor","çocuk & eğitim","yaşam & eğlence","yabancı haber","yabancı","müzik"];
+let data={}, flatList=[], activeIdx=0, hls=null, deleteMode=false;
 
-async function init() {
-    const res = await fetch("https://boru-pc-tv.vercel.app/");
-    const json = JSON.parse((await res.text()).match(/const channelsData = ([\s\S]*?);/)[1]);
-    let custom = JSON.parse(localStorage.getItem("myCh") || "[]");
-    data = {};
-    Object.keys(json).forEach(g => data[g.toLowerCase()] = json[g]);
-    custom.forEach(c => { let g = c.g.toLowerCase(); if(!data[g]) data[g] = []; data[g].push(c); });
-    render();
+const hlsConfig={capLevelToPlayerSize:true,maxBufferLength:4,maxMaxBufferLength:8,maxBufferSize:6*1024*1024,enableWorker:true,lowLatencyMode:true};
+
+async function init(){
+    try{
+        const res=await fetch("https://boru-pc-tv.vercel.app/");
+        const text=await res.text();
+        const jsonMatch=text.match(/const channelsData = ([\s\S]*?);/);
+        if(!jsonMatch) return;
+        const json=JSON.parse(jsonMatch[1]);
+        data={};
+        Object.keys(json).forEach(g=>data[g.toLowerCase()]=json[g]);
+        let custom=JSON.parse(localStorage.getItem("myCh")||"[]");
+        custom.forEach(c=>{ let g=(c.g||"özel").toLowerCase(); if(!data[g]) data[g]=[]; data[g].push(c); });
+        render();
+        // İlk kanal otomatik oynasın
+        if(flatList.length>0) play(0);
+    }catch(e){console.error(e);}
 }
 
-function render() {
-    const filter = document.getElementById("in").value.toLowerCase();
-    const list = document.getElementById("list");
-    list.innerHTML = "";
-    flatList = [];
+function render(){
+    const filter=document.getElementById("in").value.toLowerCase();
+    deleteMode = filter.includes("kanal sil");
+    const list=document.getElementById("list");
+    const fragment=document.createDocumentFragment();
+    list.innerHTML="";
+    flatList=[];
     
-    grupSirasi.forEach(g => {
-        let gLower = g.toLowerCase();
+    grupSirasi.forEach(g=>{
+        let gLower=g.toLowerCase();
         if(!data[gLower]) return;
-        let chans = data[gLower].filter(c => c.name.toLowerCase().includes(filter) || filter === "sil");
-        if(chans.length > 0) {
-            list.innerHTML += `<div class="g-title">${g}</div>`;
-            chans.forEach((c) => {
+        let chans = data[gLower];
+        if(filter && !filter.startsWith("kanal sil") && !filter.startsWith("ekle|")){
+            chans = chans.filter(c => c.name.toLowerCase().includes(filter));
+        }
+        if(chans.length>0){
+            const title=document.createElement("div");
+            title.className="g-title";
+            title.textContent=g;
+            fragment.appendChild(title);
+            chans.forEach(c=>{
                 flatList.push(c);
-                let idx = flatList.length - 1;
-                list.innerHTML += `<div class="item ${idx === activeIdx ? 'active' : ''}" onclick="play(${idx})">
-                    <img src="${c.logo || 'https://via.placeholder.com/20'}">
+                let idx=flatList.length-1;
+                const item=document.createElement("div");
+                item.className=`item ${idx===activeIdx?'active':''} ${deleteMode?'sil-mod':''}`;
+                item.innerHTML=`
+                    <img src="${c.logo||''}" onerror="this.src='https://via.placeholder.com/22'">
                     <span>${c.name}</span>
-                    ${filter === "sil" ? `<span class="del" onclick="event.stopPropagation(); del('${c.name}')">✕</span>` : ''}
-                </div>`;
+                    <button onclick="removeChannel(${idx});event.stopPropagation()">Sil</button>
+                `;
+                item.onclick=()=>play(idx);
+                fragment.appendChild(item);
             });
         }
     });
+    list.appendChild(fragment);
 }
 
-function play(idx) {
-    activeIdx = idx;
-    document.getElementById("v").src = flatList[idx].url;
-    document.getElementById("v").play();
-    render();
-    document.querySelector('.active')?.scrollIntoView({block: 'center'});
-}
-
-function del(name) {
-    let m = JSON.parse(localStorage.getItem("myCh") || "[]");
-    localStorage.setItem("myCh", JSON.stringify(m.filter(i => i.name !== name)));
-    init();
-}
-
-document.onkeydown = (e) => {
-    if(e.key === "ArrowDown") { activeIdx = Math.min(activeIdx + 1, flatList.length - 1); play(activeIdx); }
-    if(e.key === "ArrowUp") { activeIdx = Math.max(activeIdx - 1, 0); play(activeIdx); }
-};
-
-document.getElementById("in").onkeydown = (e) => {
-    if(e.key === "Enter" && e.target.value.startsWith("ekle|")) {
-        let p = e.target.value.split("|");
-        let m = JSON.parse(localStorage.getItem("myCh") || "[]");
-        m.push({g:p[1], name:p[2], url:p[3], logo:p[4]});
-        localStorage.setItem("myCh", JSON.stringify(m));
-        e.target.value = ""; init();
+function play(idx){
+    if(idx<0 || idx>=flatList.length) return;
+    activeIdx=idx;
+    const url=flatList[idx].url;
+    const v=document.getElementById("v");
+    v.muted=false; // ses açık olacak
+    if(hls){ hls.stopLoad(); hls.destroy(); hls=null; }
+    if(Hls.isSupported() && url.includes("m3u8")){
+        hls=new Hls(hlsConfig);
+        hls.loadSource(url);
+        hls.attachMedia(v);
+        hls.on(Hls.Events.MANIFEST_PARSED,()=>v.play());
+    }else{
+        v.src=url; v.play().catch(()=>{ v.play(); });
     }
+    document.querySelectorAll('.item').forEach((el,i)=>el.classList.toggle('active',i===idx));
+    document.querySelector('.active')?.scrollIntoView({block:'center',behavior:'smooth'});
+}
+
+function addChannel(str){
+    if(!str.toLowerCase().startsWith("ekle|")) return;
+    const parts=str.split("|").map(p=>p.trim());
+    if(parts.length<5) return alert("Format: ekle|Grup|Ad|URL|Logo (Logo isteğe bağlı)");
+    const [,g,name,url,logo]=parts;
+    const newCh={name,url,logo:logo||"",g};
+    const gLower=g.toLowerCase();
+    if(!data[gLower]) data[gLower]=[]; // yoksa yeni grup
+    data[gLower].push(newCh);
+    let custom=JSON.parse(localStorage.getItem("myCh")||"[]");
+    custom.push(newCh);
+    localStorage.setItem("myCh",JSON.stringify(custom));
+    render();
+}
+
+function removeChannel(idx){
+    if(idx<0 || idx>=flatList.length) return;
+    const ch=flatList[idx];
+    const g=(ch.g||"özel").toLowerCase();
+    data[g]=data[g].filter(c=>c!==ch);
+    let custom=JSON.parse(localStorage.getItem("myCh")||"[]");
+    custom=custom.filter(c=>c.name!==ch.name || c.url!==ch.url);
+    localStorage.setItem("myCh",JSON.stringify(custom));
+    if(activeIdx===idx) activeIdx=-1;
+    render();
+}
+
+const inEl=document.getElementById("in");
+inEl.addEventListener("change",()=>{ 
+    const val=inEl.value.trim();
+    if(val.toLowerCase().startsWith("ekle|")) { addChannel(val); inEl.value=""; return; }
+    render();
+});
+
+let t;
+inEl.addEventListener("input",()=>{
+    clearTimeout(t);
+    t=setTimeout(()=>{
+        if(!inEl.value.toLowerCase().startsWith("ekle|")) render();
+    },300);
+});
+
+document.onkeydown=(e)=>{
+    if(document.activeElement.id==="in") return;
+    if(e.key==="ArrowDown"){ e.preventDefault(); play(activeIdx+1); }
+    if(e.key==="ArrowUp"){ e.preventDefault(); play(activeIdx-1); }
 };
 
-document.getElementById("in").oninput = render;
 init();
 </script>
 </body>
