@@ -2,48 +2,34 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Zec IPTV</title>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100svh;background:#000;overflow:hidden}
 #app{display:flex;flex-direction:column;height:100%}
 
 /* PLAYER */
-#video-area{
-display:flex;align-items:center;justify-content:center;background:#000;width:100%;height:35vh;
-}
+#video-area{display:flex;align-items:center;justify-content:center;background:#000;width:100%;height:35vh;}
 video{width:100%;height:100%;object-fit:contain}
 
 /* CONTROLS */
-.controls{flex:1;display:flex;flex-direction:column;padding:6px;min-height:0}
+.controls{flex:1;display:flex;flex-direction:column;padding:4px;min-height:0}
 
 /* INPUT */
-#in{padding:10px;border-radius:10px;border:1px solid #333;background:#111;color:#fff;text-align:center}
+#in{padding:6px;border-radius:8px;border:1px solid #333;background:#111;color:#fff;text-align:center;touch-action:manipulation;font-size:14px;margin-bottom:4px;width:calc(100% - 8px);}
 
 /* LIST */
 #list{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;min-height:0}
 
 /* GRUP BAŞLIKLARI */
-.g-title{color:#ff2a6d;font-weight:bold;text-transform:uppercase;margin:8px 0 4px 0;text-align:center;font-size:0.8rem}
+.g-title{color:#ff2a6d;font-weight:bold;text-transform:uppercase;margin:6px 0 4px 0;text-align:center;font-size:0.75rem}
 
 /* ITEM */
-.item{
-padding:8px 10px;margin:2px 0;border-radius:12px;
-background:#111;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;color:#fff;
-}
+.item{padding:6px 8px;margin:2px 0;border-radius:10px;background:#111;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;color:#fff;}
 .item.active{background:#ff2a6d}
-.item img{width:22px;height:22px;object-fit:contain;border-radius:2px}
-
-/* FULLSCREEN */
-.fullscreen #video-area{position:fixed;top:0;left:0;width:100%;height:100%;z-index:10}
-.fullscreen .controls{display:none}
-
-/* TV LIST */
-.tv-list{position:fixed;right:0;top:0;width:30%;height:100%;background:#000;z-index:20;display:none}
-.tv-list.active{display:block}
+.item img{width:20px;height:20px;object-fit:contain;border-radius:2}
 
 /* YATAY EKRAN FLEX */
 @media (orientation: landscape){
@@ -56,187 +42,151 @@ background:#111;display:flex;align-items:center;justify-content:center;gap:10px;
 <body>
 
 <div id="app">
-<div id="video-area"></div>
-
-<div class="controls">
-<input id="in" placeholder="Kanal Ara / kanal sil / ekle|Grup|Ad|URL|Logo">
-<div id="list"></div>
-</div>
-
-<div id="tvList" class="tv-list"></div>
+  <div id="video-area"></div>
+  <div class="controls">
+    <input id="in" placeholder="Kanal Ara / kanal sil|Ad / ekle|Grup|Ad|URL|Logo">
+    <div id="list"></div>
+  </div>
 </div>
 
 <script>
 let data={},flatList=[],activeIdx=0,hls=null;
-let listOpen=false,hideTimer=null,navigating=false;
+const grupSirasi=["ulusal","sinema ve dizi","belgesel","ulusal haber","spor","çocuk & eğitim","yaşam & eğlence","yabancı haber","yabancı","müzik"];
 
-/* GRUP SIRALAMA */
-const grupSirasi=[
-"ulusal","sinema ve dizi","belgesel","ulusal haber","spor","çocuk & eğitim","yaşam & eğlence","yabancı haber","yabancı","müzik"
-];
-
-/* INIT */
+/* FETCH BORU TV */
 async function init(){
-try{
-const res=await fetch("https://boru-pc-tv.vercel.app/");
-const text=await res.text();
-const json=JSON.parse(text.match(/const channelsData = ([\s\S]*?);/)[1]);
+  try{
+    const res=await fetch("https://boru-pc-tv.vercel.app/");
+    const text=await res.text();
+    const match=text.match(/const channelsData = ([\s\S]*?);/);
+    if(!match) return;
+    const json=JSON.parse(match[1]);
 
-Object.keys(json).forEach(g=>{
-if(g.toLowerCase()==="bilgilendirme") return;
-data[g.toLowerCase()] = json[g];
-});
+    Object.keys(json).forEach(g=>{
+      if(g.toLowerCase()==="bilgilendirme") return;
+      data[g.toLowerCase()]=json[g];
+    });
 
-render();
-if(flatList.length) play(0);
-}catch(e){console.error(e);}
+    render();
+    if(flatList.length) play(0);
+  }catch(e){console.error(e);}
 }
 
 /* GRUP SIRALAMA */
 function getSortedGroups(){
-const keys=Object.keys(data);
-let ordered=[];
-grupSirasi.forEach(g=>{
-const found=keys.find(k=>k.toLowerCase()===g.toLowerCase());
-if(found) ordered.push(found);
-});
-keys.forEach(k=>{if(!ordered.includes(k)) ordered.push(k);});
-return ordered;
+  const keys=Object.keys(data);
+  let ordered=[];
+  grupSirasi.forEach(g=>{
+    const found=keys.find(k=>k.toLowerCase()===g.toLowerCase());
+    if(found) ordered.push(found);
+  });
+  keys.forEach(k=>{if(!ordered.includes(k)) ordered.push(k);});
+  return ordered;
+}
+
+/* ITEM */
+function createItem(c,idx){
+  const div=document.createElement("div");
+  div.className="item";
+  div.innerHTML=`<img src="${c.logo||'https://via.placeholder.com/22'}"><span>${c.name}</span>`;
+  div.style.justifyContent="center";
+
+  let touchStartY=0, touchMoved=false;
+  div.addEventListener("touchstart",e=>{touchStartY=e.touches[0].clientY; touchMoved=false;});
+  div.addEventListener("touchmove",e=>{if(Math.abs(e.touches[0].clientY-touchStartY)>10) touchMoved=true;});
+  div.addEventListener("touchend",()=>{if(!touchMoved) play(idx);});
+  div.addEventListener("click",()=>play(idx));
+  return div;
 }
 
 /* RENDER */
-function render(){
-const list=document.getElementById("list");
-const tvList=document.getElementById("tvList");
-const videoArea=document.getElementById("video-area");
+function render(filter=""){
+  const list=document.getElementById("list");
+  list.innerHTML=""; flatList=[];
 
-list.innerHTML="";tvList.innerHTML="";videoArea.innerHTML="";flatList=[];
+  getSortedGroups().forEach(g=>{
+    const channels=data[g].filter(c=>c.name.toLowerCase().includes(filter.toLowerCase()));
+    if(channels.length===0) return;
+    let title=document.createElement("div"); title.className="g-title"; title.textContent=g;
+    list.appendChild(title);
 
-getSortedGroups().forEach(g=>{
-let title=document.createElement("div");
-title.className="g-title"; title.textContent=g;
-list.appendChild(title);
-
-data[g].forEach(c=>{
-flatList.push(c);
-let idx=flatList.length-1;
-
-let div=document.createElement("div");
-div.className="item";
-div.innerHTML=`<img src="${c.logo||'https://via.placeholder.com/22'}"><span>${c.name}</span>`;
-div.style.justifyContent="center";
-div.onclick=()=>play(idx);
-div.addEventListener("touchstart",()=>play(idx));
-
-let tvDiv=div.cloneNode(true);
-tvDiv.onclick=()=>play(idx);
-
-list.appendChild(div);
-tvList.appendChild(tvDiv);
-});
-});
+    channels.forEach(c=>{
+      flatList.push(c);
+      let idx=flatList.length-1;
+      list.appendChild(createItem(c,idx));
+    });
+  });
 }
 
 /* PLAY */
 function play(i){
-activeIdx=i;
-const videoArea=document.getElementById("video-area");
-if(!document.getElementById("v")){
-const video=document.createElement("video");
-video.id="v"; video.controls=true; video.playsInline=true;
-videoArea.appendChild(video);
+  activeIdx=i;
+  const videoArea=document.getElementById("video-area");
+  if(!document.getElementById("v")){
+    const video=document.createElement("video");
+    video.id="v"; video.controls=true; video.playsInline=true;
+    videoArea.appendChild(video);
+  }
+  const v=document.getElementById("v");
+  const url=flatList[i].url;
 
-/* ⚡ MOBİL PLAY/PAUSE DÜZELTME */
-video.addEventListener("click",()=>{video.paused?video.play():video.pause();});
-video.addEventListener("touchstart",()=>{video.paused?video.play():video.pause();});
-}
-
-const v=document.getElementById("v");
-const url=flatList[i].url;
-
-if(hls){hls.destroy();}
-if(Hls.isSupported() && url.includes("m3u8")){
-hls=new Hls();
-hls.loadSource(url);
-hls.attachMedia(v);
-hls.on(Hls.Events.MANIFEST_PARSED,()=>v.play());
-}else{
-v.src=url; v.play();
-}
-
-highlight();
-startCloseTimer();
+  if(hls){hls.destroy();}
+  if(Hls.isSupported() && url.includes("m3u8")){
+    hls=new Hls();
+    hls.loadSource(url);
+    hls.attachMedia(v);
+    hls.on(Hls.Events.MANIFEST_PARSED,()=>v.play());
+  } else {v.src=url; v.play();}
+  
+  highlight();
 }
 
 /* ACTIVE */
 function highlight(){
-document.querySelectorAll(".item").forEach((el,i)=>{
-el.classList.toggle("active",i===activeIdx);
+  document.querySelectorAll(".item").forEach((el,i)=>{
+    el.classList.toggle("active",i===activeIdx);
+  });
+}
+
+/* KANAL EKLE / SİL */
+document.getElementById("in").addEventListener("input",e=>{
+  const val=e.target.value.trim();
+  if(!val) return;
+
+  // SİL
+  if(val.toLowerCase().startsWith("kanal sil|")){
+    const name=val.split("|")[1]?.trim();
+    if(!name) return;
+    Object.keys(data).forEach(g=>{ data[g]=data[g].filter(c=>c.name!==name); });
+    e.target.value="";
+    render(); // normal render ile kanallar gözükür
+    return;
+  }
+
+  // EKLE
+  if(val.toLowerCase().startsWith("ekle|")){
+    const parts=val.split("|");
+    if(parts.length<5) return;
+    const g=parts[1].trim().toLowerCase();
+    const name=parts[2].trim();
+    const url=parts[3].trim();
+    const logo=parts[4].trim();
+    if(!data[g]) data[g]=[];
+    data[g].push({name,url,logo});
+    e.target.value="";
+    render();
+    return;
+  }
+
+  // normal arama
+  render(val);
 });
-}
 
-/* TV FULLSCREEN */
-function toggleFullscreenTV(){
-const tvList=document.getElementById("tvList");
-document.body.classList.add("fullscreen");
-listOpen=true;
-tvList.classList.add("active");
-startCloseTimer();
-}
-
-/* LIST AUTO CLOSE */
-function startCloseTimer(){
-clearTimeout(hideTimer);
-if(listOpen && !navigating){
-hideTimer=setTimeout(()=>{closeList()},5000);
-}
-}
-
-function openList(){listOpen=true;navigating=false;document.getElementById("tvList").classList.add("active");startCloseTimer();}
-function closeList(){listOpen=false;document.getElementById("tvList").classList.remove("active");clearTimeout(hideTimer);}
-
-/* PC / Mobil sağ tık ve enter iptal */
 document.addEventListener("contextmenu",e=>e.preventDefault());
-document.addEventListener("keydown",(e)=>{if(e.key==="Enter"){e.preventDefault();}});
-
-/* TV REMOTE */
-document.addEventListener("keydown",(e)=>{
-const v=document.getElementById("v");
-
-switch(e.key){
-case "Enter":
-if(document.activeElement.classList.contains("item") && !document.body.classList.contains("fullscreen")){
-toggleFullscreenTV();
-}
-break;
-
-case "Backspace":
-if(document.body.classList.contains("fullscreen")){document.body.classList.remove("fullscreen");e.preventDefault();}
-break;
-
-case "ArrowUp":
-if(listOpen){navigating=true;clearTimeout(hideTimer);}
-else if(document.body.classList.contains("fullscreen")){play((activeIdx-1+flatList.length)%flatList.length);}
-break;
-
-case "ArrowDown":
-if(listOpen){navigating=true;clearTimeout(hideTimer);}
-else if(document.body.classList.contains("fullscreen")){play((activeIdx+1)%flatList.length);}
-break;
-
-case "ArrowRight":document.getElementById("in").focus();break;
-case "ArrowLeft":v.currentTime-=5;break;
-}
+document.addEventListener("keydown",e=>{
+  if(e.key==="ArrowUp") play((activeIdx-1+flatList.length)%flatList.length);
+  if(e.key==="ArrowDown") play((activeIdx+1)%flatList.length);
 });
-
-/* BASILI TUŞ */
-let hold;
-document.addEventListener("keydown",(e)=>{
-const v=document.getElementById("v");
-if(e.key==="ArrowRight"){hold=setInterval(()=>v.currentTime+=2,200);}
-if(e.key==="ArrowLeft"){hold=setInterval(()=>v.currentTime-=2,200);}
-});
-document.addEventListener("keyup",()=>clearInterval(hold));
 
 init();
 </script>
