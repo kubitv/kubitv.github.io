@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Zec IPTV</title>
+<title>Zec IPTV Pro</title>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -27,9 +27,12 @@ video{width:100%;height:100%;object-fit:contain}
 .g-title{color:#ff2a6d;font-weight:bold;text-transform:uppercase;margin:6px 0 4px 0;text-align:center;font-size:0.75rem}
 
 /* ITEM */
-.item{padding:6px 8px;margin:2px 0;border-radius:10px;background:#111;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;color:#fff;}
+.item{padding:6px 8px;margin:2px 0;border-radius:10px;background:#111;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;color:#fff;position:relative;}
 .item.active{background:#ff2a6d}
 .item img{width:20px;height:20px;object-fit:contain;border-radius:2}
+
+/* SIL BUTONU */
+.item .del-btn{position:absolute;right:5px;top:50%;transform:translateY(-50%);background:red;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;cursor:pointer;display:none}
 
 /* YATAY EKRAN FLEX */
 @media (orientation: landscape){
@@ -44,14 +47,16 @@ video{width:100%;height:100%;object-fit:contain}
 <div id="app">
   <div id="video-area"></div>
   <div class="controls">
-    <input id="in" placeholder="Kanal Ara / kanal sil|Ad / ekle|Grup|Ad|URL|Logo">
+    <input id="in" placeholder="Kanal Ara...">
     <div id="list"></div>
   </div>
 </div>
 
 <script>
 let data={},flatList=[],activeIdx=0,hls=null;
+let manualChannels = JSON.parse(localStorage.getItem("myCh")||"[]");
 const grupSirasi=["ulusal","sinema ve dizi","belgesel","ulusal haber","spor","çocuk & eğitim","yaşam & eğlence","yabancı haber","yabancı","müzik"];
+let silMode=false;
 
 /* FETCH BORU TV */
 async function init(){
@@ -65,6 +70,13 @@ async function init(){
     Object.keys(json).forEach(g=>{
       if(g.toLowerCase()==="bilgilendirme") return;
       data[g.toLowerCase()]=json[g];
+    });
+
+    // Manuel kanalları var olan gruplara ekle
+    manualChannels.forEach(c=>{
+      const g=c.g.toLowerCase();
+      if(!data[g]) data[g]=[];
+      data[g].push({name:c.name,url:c.url,logo:c.logo,manual:true});
     });
 
     render();
@@ -90,6 +102,17 @@ function createItem(c,idx){
   div.className="item";
   div.innerHTML=`<img src="${c.logo||'https://via.placeholder.com/22'}"><span>${c.name}</span>`;
   div.style.justifyContent="center";
+
+  if(silMode && c.manual){
+    const del=document.createElement("div");
+    del.className="del-btn"; del.textContent="Sil";
+    del.style.display="block";
+    del.onclick=(e)=>{
+      e.stopPropagation();
+      removeManual(c);
+    };
+    div.appendChild(del);
+  }
 
   let touchStartY=0, touchMoved=false;
   div.addEventListener("touchstart",e=>{touchStartY=e.touches[0].clientY; touchMoved=false;});
@@ -148,20 +171,25 @@ function highlight(){
   });
 }
 
-/* KANAL EKLE / SİL */
+/* REMOVE MANUAL */
+function removeManual(c){
+  manualChannels = manualChannels.filter(m=>m.url!==c.url);
+  localStorage.setItem("myCh",JSON.stringify(manualChannels));
+  Object.keys(data).forEach(g=>{
+    data[g]=data[g].filter(x=>x!==c);
+  });
+  render();
+}
+
+/* INPUT */
 document.getElementById("in").addEventListener("input",e=>{
   const val=e.target.value.trim();
   if(!val) return;
 
-  // SİL
-  if(val.toLowerCase().startsWith("kanal sil|")){
-    const name=val.split("|")[1]?.trim();
-    if(!name) return;
-    Object.keys(data).forEach(g=>{ data[g]=data[g].filter(c=>c.name!==name); });
-    e.target.value="";
-    render(); // normal render ile kanallar gözükür
-    return;
-  }
+  // SIL MODU
+  if(val.toLowerCase()==="kanal sil"){
+    silMode=true; e.target.value=""; render(); return;
+  } else silMode=false;
 
   // EKLE
   if(val.toLowerCase().startsWith("ekle|")){
@@ -172,10 +200,11 @@ document.getElementById("in").addEventListener("input",e=>{
     const url=parts[3].trim();
     const logo=parts[4].trim();
     if(!data[g]) data[g]=[];
-    data[g].push({name,url,logo});
-    e.target.value="";
-    render();
-    return;
+    const obj={name,url,logo,manual:true,g:g};
+    data[g].push(obj);
+    manualChannels.push(obj);
+    localStorage.setItem("myCh",JSON.stringify(manualChannels));
+    e.target.value=""; render(); return;
   }
 
   // normal arama
