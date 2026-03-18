@@ -30,27 +30,24 @@ video{width:100%;height:100%;object-fit:contain}
 <div id="app">
   <div id="video-area"></div>
   <div class="controls">
-    <input id="in" placeholder="Kanal Ara...">
+    <input id="in" placeholder="Kanal Ara....">
     <div id="list"></div>
   </div>
 </div>
 
 <script>
 let data={},flatList=[],activeIdx=0,hls=null;
-
-// Manuel kanallar
 let manualChannels = JSON.parse(localStorage.getItem("myCh")||"[]");
 
-// Kod içindeki sabit kanallar (silinemez)
 const defaultChannels=[
-  { g:"", name:"", url:"https://testurl1.m3u8", logo:"https://via.placeholder.com/22", manual:false },
+  { g:"", name:"", url:"", logo:"", manual:false },
   { g:"spor", name:"beIN SPORTS 1", url:"https://api.codetabs.com/v1/proxy/?quest=https://andro.2385437.xyz/checklist/receptestt.m3u8", logo:"https://images.seeklogo.com/logo-png/48/2/bein-sports-1-logo-png_seeklogo-481583.png", manual:false }
 ];
 
 const grupSirasi=["ulusal","sinema ve dizi","belgesel","ulusal haber","spor","çocuk & eğitim","yaşam & eğlence","yabancı haber","yabancı","müzik"];
 let silMode=false;
+let focusMode="list";
 
-/* FETCH BORU TV */
 async function init(){
   try{
     const res=await fetch("https://boru-pc-tv.vercel.app/");
@@ -64,19 +61,16 @@ async function init(){
       data[g.toLowerCase()]=json[g];
     });
 
-    // Manuel kanalları var olan gruplara ekle
-    manualChannels.forEach(c=>{
-      const g=c.g.toLowerCase();
-      if(!data[g]) data[g]=[];
-      data[g].push({...c,manual:true});
-    });
-
-    // Kod içi sabit kanalları ekle (silinemez)
     defaultChannels.forEach(c=>{
       const g=c.g.toLowerCase();
       if(!data[g]) data[g]=[];
-      // aynı URL yoksa ekle
       if(!data[g].some(x=>x.url===c.url)) data[g].push(c);
+    });
+
+    manualChannels.forEach(c=>{
+      const g=c.g.toLowerCase();
+      if(!data[g]) data[g]=[];
+      if(!data[g].some(x=>x.url===c.url)) data[g].push({...c,manual:true});
     });
 
     render();
@@ -84,7 +78,6 @@ async function init(){
   }catch(e){console.error(e);}
 }
 
-/* GRUP SIRALAMA */
 function getSortedGroups(){
   const keys=Object.keys(data);
   let ordered=[];
@@ -96,21 +89,19 @@ function getSortedGroups(){
   return ordered;
 }
 
-/* ITEM */
 function createItem(c,idx){
   const div=document.createElement("div");
   div.className="item";
   div.innerHTML=`<img src="${c.logo||'https://via.placeholder.com/22'}"><span>${c.name}</span>`;
   div.style.justifyContent="center";
 
-  // sil butonu sadece manuel kanallar için
   if(silMode && c.manual){
     const del=document.createElement("div");
     del.className="del-btn"; del.textContent="Sil";
     del.style.display="block";
     del.onclick=(e)=>{
       e.stopPropagation();
-      removeManual(c);
+      removeManual(c); // burası artık işlevsel
     };
     div.appendChild(del);
   }
@@ -118,18 +109,20 @@ function createItem(c,idx){
   let touchStartY=0, touchMoved=false;
   div.addEventListener("touchstart",e=>{touchStartY=e.touches[0].clientY; touchMoved=false;});
   div.addEventListener("touchmove",e=>{if(Math.abs(e.touches[0].clientY-touchStartY)>10) touchMoved=true;});
-  div.addEventListener("touchend",()=>{if(!touchMoved) play(idx);});
-  div.addEventListener("click",()=>play(idx));
+  div.addEventListener("touchend",()=>{if(!touchMoved){play(idx); input.value=""; render();}});
+  div.addEventListener("click",()=>{play(idx); input.value=""; render();});
   return div;
 }
 
-/* RENDER */
 function render(filter=""){
   const list=document.getElementById("list");
   list.innerHTML=""; flatList=[];
 
+  const filterText = filter.toLowerCase();
+
   getSortedGroups().forEach(g=>{
-    const channels=data[g].filter(c=>c.name.toLowerCase().includes(filter.toLowerCase()));
+    let channels = data[g];
+    if(filterText) channels = channels.filter(c=>c.name.toLowerCase().includes(filterText));
     if(channels.length===0) return;
     let title=document.createElement("div"); title.className="g-title"; title.textContent=g;
     list.appendChild(title);
@@ -142,7 +135,6 @@ function render(filter=""){
   });
 }
 
-/* PLAY */
 function play(i){
   activeIdx=i;
   const videoArea=document.getElementById("video-area");
@@ -165,34 +157,31 @@ function play(i){
   highlight();
 }
 
-/* ACTIVE */
 function highlight(){
   document.querySelectorAll(".item").forEach((el,i)=>{
-    el.classList.toggle("active",i===activeIdx);
+    el.classList.toggle("active", i===activeIdx);
+    if(i===activeIdx){el.scrollIntoView({block:"center", behavior:"smooth"});}
   });
 }
 
-/* REMOVE MANUAL */
 function removeManual(c){
   manualChannels = manualChannels.filter(m=>m.url!==c.url);
   localStorage.setItem("myCh",JSON.stringify(manualChannels));
   Object.keys(data).forEach(g=>{
-    data[g]=data[g].filter(x=>x!==c);
+    data[g]=data[g].filter(x=>!(x.manual && x.url===c.url));
   });
   render();
 }
 
-/* INPUT */
-document.getElementById("in").addEventListener("input",e=>{
+const input = document.getElementById("in");
+input.addEventListener("input",e=>{
   const val=e.target.value.trim();
   if(!val) return;
 
-  // SIL MODU
   if(val.toLowerCase()==="kanal sil"){
     silMode=true; e.target.value=""; render(); return;
   } else silMode=false;
 
-  // EKLE
   if(val.toLowerCase().startsWith("ekle|")){
     const parts=val.split("|");
     if(parts.length<5) return;
@@ -212,10 +201,34 @@ document.getElementById("in").addEventListener("input",e=>{
 });
 
 document.addEventListener("contextmenu",e=>e.preventDefault());
-document.addEventListener("keydown",e=>{
-  if(e.key==="ArrowUp") play((activeIdx-1+flatList.length)%flatList.length);
-  if(e.key==="ArrowDown") play((activeIdx+1)%flatList.length);
+
+let lastInputWasKeyboard=false;
+document.addEventListener("keydown", e=>{
+  lastInputWasKeyboard=true;
+
+  if(e.key==="ArrowUp"){
+    if(focusMode==="list"){
+      if(activeIdx===0){ focusMode="input"; input.focus(); return; }
+      else play((activeIdx-1+flatList.length)%flatList.length);
+    } else if(focusMode==="input"){ focusMode="list"; play(flatList.length-1);}
+  }
+
+  if(e.key==="ArrowDown"){
+    if(focusMode==="input"){ focusMode="list"; play(0); return; }
+    if(focusMode==="list"){
+      if(activeIdx===flatList.length-1){ play(0); }
+      else play((activeIdx+1)%flatList.length);
+    }
+  }
+
+  if(e.key==="Enter"){
+    const video=document.getElementById("v");
+    if(video && lastInputWasKeyboard){if(!document.fullscreenElement) video.requestFullscreen();}
+  }
 });
+
+document.addEventListener("mousedown",()=>{ lastInputWasKeyboard=false; });
+document.addEventListener("touchstart",()=>{ lastInputWasKeyboard=false; });
 
 init();
 </script>
