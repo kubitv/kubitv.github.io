@@ -20,11 +20,18 @@ video{width:100%;height:100%;object-fit:contain;}
 .item img{width:20px;height:20px;object-fit:contain;border-radius:2}
 .item .del-btn{position:absolute;right:5px;top:50%;transform:translateY(-50%);background:red;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;cursor:pointer;display:none}
 
-/* PC ve TV geniş ekran düzeni */
+/* PC ve TV geniş ekran */
 @media (min-width:1024px){
   #app{flex-direction:row;height:100vh;}
-  #video-area{width:70%;height:100vh;}
-  .controls{width:30%;height:100vh;border-left:1px solid #1a1a1a;}
+  #video-area{width:75%;height:100vh;}
+  .controls{width:25%;height:100vh;border-left:1px solid #1a1a1a;}
+}
+
+/* Mobil yatay ekran */
+@media (orientation: landscape) and (max-width:1023px){
+  #app{flex-direction:row;height:100vh;}
+  #video-area{width:70%;height:100%;}
+  .controls{width:30%;height:100%;border-left:1px solid #1a1a1a;}
 }
 </style>
 </head>
@@ -229,15 +236,15 @@ document.addEventListener("keydown", e=>{
 
   if(e.key==="ArrowUp"){
     if(focusMode==="list"){
-      if(activeIdx===0){ return; }
-      else play((activeIdx-1+flatList.length)%flatList.length);
+      activeIdx = (activeIdx - 1 + flatList.length) % flatList.length;
+      play(activeIdx);
     }
   }
 
   if(e.key==="ArrowDown"){
     if(focusMode==="list"){
-      if(activeIdx===flatList.length-1){ play(0); }
-      else play((activeIdx+1)%flatList.length);
+      activeIdx = (activeIdx + 1) % flatList.length;
+      play(activeIdx);
     }
   }
 
