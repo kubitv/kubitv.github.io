@@ -9,8 +9,8 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100svh;background:#000;overflow:hidden}
 #app{display:flex;flex-direction:column;height:100%}
-#video-area{display:flex;align-items:center;justify-content:center;background:#000;width:100%;min-height:35vh;max-height:60vh;}
-video{width:100%;height:100%;object-fit:contain}
+#video-area{display:flex;align-items:center;justify-content:center;background:#000;width:100%;height:35vh;min-height:35vh;}
+video{width:100%;height:100%;object-fit:contain;}
 .controls{flex:1;display:flex;flex-direction:column;padding:4px;min-height:0}
 #in{padding:6px;border-radius:8px;border:1px solid #333;background:#111;color:#fff;text-align:center;touch-action:manipulation;font-size:14px;margin-bottom:4px;width:calc(100% - 8px);}
 #list{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;min-height:0}
@@ -19,10 +19,12 @@ video{width:100%;height:100%;object-fit:contain}
 .item.active{background:#ff2a6d}
 .item img{width:20px;height:20px;object-fit:contain;border-radius:2}
 .item .del-btn{position:absolute;right:5px;top:50%;transform:translateY(-50%);background:red;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;cursor:pointer;display:none}
-@media (orientation: landscape){
-#app{flex-direction:row;}
-#video-area{width:70%;height:100%;}
-.controls{width:30%;height:100%;border-left:1px solid #1a1a1a;}
+
+/* PC ve TV geniş ekran düzeni */
+@media (min-width:1024px){
+  #app{flex-direction:row;height:100vh;}
+  #video-area{width:70%;height:100vh;}
+  .controls{width:30%;height:100vh;border-left:1px solid #1a1a1a;}
 }
 </style>
 </head>
@@ -175,7 +177,6 @@ function highlight(){
   document.querySelectorAll(".item").forEach((el,i)=>{
     el.classList.toggle("active", i===activeIdx);
     if(i===activeIdx){
-      // Sadece listeyi kaydır, video alanı sabit
       const listRect=list.getBoundingClientRect();
       const elRect=el.getBoundingClientRect();
       const offset = elRect.top - listRect.top - (list.clientHeight/2 - el.clientHeight/2);
