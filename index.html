@@ -96,12 +96,11 @@ function createItem(c,idx){
   div.style.justifyContent="center";
 
   if(silMode && c.manual){
-    const del=document.createElement("div");
-    del.className="del-btn"; del.textContent="Sil";
+    const del=document.createElement("div"); del.className="del-btn"; del.textContent="Sil";
     del.style.display="block";
     del.onclick=(e)=>{
       e.stopPropagation();
-      removeManual(c); // burası artık işlevsel
+      removeManual(c);
     };
     div.appendChild(del);
   }
@@ -109,8 +108,22 @@ function createItem(c,idx){
   let touchStartY=0, touchMoved=false;
   div.addEventListener("touchstart",e=>{touchStartY=e.touches[0].clientY; touchMoved=false;});
   div.addEventListener("touchmove",e=>{if(Math.abs(e.touches[0].clientY-touchStartY)>10) touchMoved=true;});
-  div.addEventListener("touchend",()=>{if(!touchMoved){play(idx); input.value=""; render();}});
-  div.addEventListener("click",()=>{play(idx); input.value=""; render();});
+  div.addEventListener("touchend",()=>{
+    if(!touchMoved){
+      play(idx); 
+      input.value=""; 
+      render(); 
+      focusMode="list"; 
+      highlight(); // Dokunma ile seçildiğinde odak göster
+    }
+  });
+  div.addEventListener("click",()=>{
+    play(idx); 
+    input.value=""; 
+    render(); 
+    focusMode="list"; 
+    highlight(); // Fare ile seçildiğinde odak göster
+  });
   return div;
 }
 
@@ -208,13 +221,12 @@ document.addEventListener("keydown", e=>{
 
   if(e.key==="ArrowUp"){
     if(focusMode==="list"){
-      if(activeIdx===0){ focusMode="input"; input.focus(); return; }
+      if(activeIdx===0){ return; }
       else play((activeIdx-1+flatList.length)%flatList.length);
-    } else if(focusMode==="input"){ focusMode="list"; play(flatList.length-1);}
+    }
   }
 
   if(e.key==="ArrowDown"){
-    if(focusMode==="input"){ focusMode="list"; play(0); return; }
     if(focusMode==="list"){
       if(activeIdx===flatList.length-1){ play(0); }
       else play((activeIdx+1)%flatList.length);
