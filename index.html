@@ -30,7 +30,7 @@ video{width:100%;height:100%;object-fit:contain}
 <div id="app">
   <div id="video-area"></div>
   <div class="controls">
-    <input id="in" placeholder="Kanal Ara....">
+    <input id="in" placeholder="Kanal Ara...">
     <div id="list"></div>
   </div>
 </div>
@@ -47,6 +47,7 @@ const defaultChannels=[
 const grupSirasi=["ulusal","sinema ve dizi","belgesel","ulusal haber","spor","çocuk & eğitim","yaşam & eğlence","yabancı haber","yabancı","müzik"];
 let silMode=false;
 let focusMode="list";
+const isTV = /Android TV|GoogleTV|SMART-TV|Tizen|Web0S/i.test(navigator.userAgent);
 
 async function init(){
   try{
@@ -97,12 +98,11 @@ function createItem(c,idx){
 
   if(silMode && c.manual){
     const del=document.createElement("div");
-    del.className="del-btn"; del.textContent="Sil";
-    del.style.display="block";
-    del.onclick=(e)=>{
+    del.className="del-btn"; del.textContent="Sil"; del.style.display="block";
+    del.addEventListener("click",(e)=>{
       e.stopPropagation();
-      removeManual(c); // burası artık işlevsel
-    };
+      removeManual(c);
+    });
     div.appendChild(del);
   }
 
@@ -133,6 +133,11 @@ function render(filter=""){
       list.appendChild(createItem(c,idx));
     });
   });
+
+  // TV’de liste kaydırma (active kanal her zaman görünür)
+  if(isTV && flatList.length && document.querySelector(".item.active")){
+    document.querySelector(".item.active").scrollIntoView({block:"center", behavior:"smooth"});
+  }
 }
 
 function play(i){
@@ -160,7 +165,9 @@ function play(i){
 function highlight(){
   document.querySelectorAll(".item").forEach((el,i)=>{
     el.classList.toggle("active", i===activeIdx);
-    if(i===activeIdx){el.scrollIntoView({block:"center", behavior:"smooth"});}
+    if(isTV && i===activeIdx){
+      el.scrollIntoView({block:"center",behavior:"smooth"});
+    }
   });
 }
 
@@ -173,14 +180,13 @@ function removeManual(c){
   render();
 }
 
-const input = document.getElementById("in");
+const input=document.getElementById("in");
 input.addEventListener("input",e=>{
   const val=e.target.value.trim();
   if(!val) return;
 
-  if(val.toLowerCase()==="kanal sil"){
-    silMode=true; e.target.value=""; render(); return;
-  } else silMode=false;
+  if(val.toLowerCase()==="kanal sil"){ silMode=true; e.target.value=""; render(); return; } 
+  else silMode=false;
 
   if(val.toLowerCase().startsWith("ekle|")){
     const parts=val.split("|");
@@ -208,7 +214,10 @@ document.addEventListener("keydown", e=>{
 
   if(e.key==="ArrowUp"){
     if(focusMode==="list"){
-      if(activeIdx===0){ focusMode="input"; input.focus(); return; }
+      if(activeIdx===0){
+        if(isTV){ input.blur(); return; } 
+        else { focusMode="input"; input.focus(); return; }
+      }
       else play((activeIdx-1+flatList.length)%flatList.length);
     } else if(focusMode==="input"){ focusMode="list"; play(flatList.length-1);}
   }
@@ -221,9 +230,18 @@ document.addEventListener("keydown", e=>{
     }
   }
 
-  if(e.key==="Enter"){
+  // TV’de ok tuşları ile player tam ekran
+  if(isTV && e.key==="Enter"){
     const video=document.getElementById("v");
-    if(video && lastInputWasKeyboard){if(!document.fullscreenElement) video.requestFullscreen();}
+    if(video){ video.requestFullscreen().catch(()=>{}); }
+  }
+
+  // TV sağ sol tuşları video sarma
+  if(isTV && (e.key==="ArrowRight"||e.key==="ArrowLeft")){
+    const video=document.getElementById("v");
+    if(video){
+      video.currentTime += (e.key==="ArrowRight"?5:-5);
+    }
   }
 });
 
